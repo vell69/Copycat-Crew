@@ -134,7 +134,7 @@ if not RunService:IsRunning() then
 	local noop = function() end
 	return table.freeze({
 		SendEvents = noop,
-		PlaceUnit = table.freeze({
+		Remote = table.freeze({
 			On = noop
 		}),
 	}) :: Events
@@ -196,7 +196,7 @@ reliable.OnServerEvent:Connect(function(player, buff, inst)
 	local len = buffer.len(buff)
 	while incoming_read < len do
 		local id = buffer.readu8(buff, read(1))
-		if id == 0 then -- PlaceUnit
+		if id == 0 then -- Remote
 			local value, value2
 			local len_1 = buffer.readu16(incoming_buff, read(2))
 			value = buffer.readstring(incoming_buff, read(len_1), len_1)
@@ -222,7 +222,7 @@ table.freeze(polling_queues_unreliable)
 
 local returns = {
 	SendEvents = SendEvents,
-	PlaceUnit = {
+	Remote = {
 		On = function(Callback: (Player: Player, name: (string), cframe: (CFrame)) -> ()): () -> ()
 			table.insert(reliable_events[0], Callback)
 			return function()

@@ -132,7 +132,7 @@ if not RunService:IsRunning() then
 	local noop = function() end
 	return table.freeze({
 		SendEvents = noop,
-		PlaceUnit = table.freeze({
+		Remote = table.freeze({
 			Fire = noop
 		}),
 	}) :: Events
@@ -164,7 +164,7 @@ table.freeze(polling_queues_unreliable)
 
 local returns = {
 	SendEvents = SendEvents,
-	PlaceUnit = {
+	Remote = {
 		Fire = function(name: (string), cframe: (CFrame))
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 0)
