@@ -3,7 +3,7 @@ local DataServiceTyped = require(ReplicatedStorage.Packages.DataServiceTyped)
 
 return DataServiceTyped({
 	template = {
-		Money = 0 :: number,
+		Money = 1000000 :: number,
 	},
 
 	useMock = true,

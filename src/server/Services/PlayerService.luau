@@ -38,6 +38,8 @@ function PlayerService:_playerAdded(player: Player)
 	local playerData = Data.Service:waitForData(player)
 	assert(playerData, `[Roll]: failed to fetch {player.Name}'s data`)
 
+	print(playerData.Money())
+
 	local function characterAdded(character: Model)
 		local playersFolder = getWorkspacePlayersFolder()
 		character.Parent = playersFolder
