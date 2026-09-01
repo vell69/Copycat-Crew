@@ -32,7 +32,7 @@ end
 
 local controllerFolder = script:FindFirstChild("Controllers")
 local controllers = controllerFolder
-		and (Config.Initialization.Client.LoadDescendants and controllerFolder:GetDescendants() or controllerFolder:GetChildren())
+		and (Config.Initialization.CLIENT.LOAD_DESCENDANTS and controllerFolder:GetDescendants() or controllerFolder:GetChildren())
 	or {}
 
 for _, module in ipairs(controllers) do

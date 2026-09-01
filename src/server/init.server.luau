@@ -4,7 +4,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 
 local serviceFolder = script:FindFirstChild("Services")
 local Services = serviceFolder
-		and (Config.Initialization.Server.LoadDescendants and serviceFolder:GetDescendants() or serviceFolder:GetChildren())
+		and (Config.Initialization.SERVER.LOAD_DESCENDANTS and serviceFolder:GetDescendants() or serviceFolder:GetChildren())
 	or {}
 
 for _, module in ipairs(Services) do

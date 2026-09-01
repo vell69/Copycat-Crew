@@ -5,7 +5,7 @@ local Data = require(ReplicatedStorage.Shared.Data).server
 
 local PlayerService = {}
 
-local function getWorkspacePlayersFolder()
+local function getWorkspacePlayersFolder() : Folder
 	local folder = workspace:FindFirstChild("Players")
 
 	if not folder then
@@ -17,7 +17,7 @@ local function getWorkspacePlayersFolder()
 	return folder
 end
 
-function PlayerService:Init()
+function PlayerService:Init() : nil
 	local function onPlayerAdded(player: Player)
 		self:_playerAdded(player)
 	end
@@ -34,11 +34,9 @@ function PlayerService:Init()
 	end
 end
 
-function PlayerService:_playerAdded(player: Player)
+function PlayerService:_playerAdded(player: Player) : nil
 	local playerData = Data.Service:waitForData(player)
 	assert(playerData, `[Roll]: failed to fetch {player.Name}'s data`)
-
-	print(playerData.Money())
 
 	local function characterAdded(character: Model)
 		local playersFolder = getWorkspacePlayersFolder()
@@ -52,7 +50,7 @@ function PlayerService:_playerAdded(player: Player)
 	player.CharacterAdded:Connect(characterAdded)
 end
 
-function PlayerService:_playerRemoving(_player: Player)
+function PlayerService:_playerRemoving(_player: Player) : nil
 
 end
 

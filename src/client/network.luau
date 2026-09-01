@@ -132,8 +132,11 @@ if not RunService:IsRunning() then
 	local noop = function() end
 	return table.freeze({
 		SendEvents = noop,
-		Remote = table.freeze({
-			Fire = noop
+		UpdateStatus = table.freeze({
+			On = noop
+		}),
+		ToggleBuildPhase = table.freeze({
+			On = noop
 		}),
 	}) :: Events
 end
@@ -159,35 +162,93 @@ end
 
 RunService.Heartbeat:Connect(SendEvents)
 
+local reliable_events = table.create(2)
+local reliable_event_queue: { [number]: { any } } = table.create(2)
+reliable_events[0] = {}
+reliable_event_queue[0] = {}
+reliable_events[1] = {}
+reliable_event_queue[1] = {}
+reliable.OnClientEvent:Connect(function(buff, inst)
+	incoming_buff = buff
+	incoming_inst = inst
+	incoming_read = 0
+	incoming_ipos = 0
+	local len = buffer.len(buff)
+	while incoming_read < len do
+		local id = buffer.readu8(buff, read(1))
+		if id == 0 then -- UpdateStatus
+			local value
+			local bool_1 = buffer.readu8(incoming_buff, read(1))
+			value = {  }
+			local len_1 = buffer.readu16(incoming_buff, read(2))
+			value["primary"] = buffer.readstring(incoming_buff, read(len_1), len_1)
+			assert(utf8.len(value["primary"]) ~= nil, "value is not valid utf-8")
+			if bit32.btest(bool_1, 0b0000000000000001) then
+				local len_2 = buffer.readu16(incoming_buff, read(2))
+				value["secondary"] = buffer.readstring(incoming_buff, read(len_2), len_2)
+				assert(utf8.len(value["secondary"]) ~= nil, "value is not valid utf-8")
+			else
+				value["secondary"] = nil
+			end
+			if reliable_events[0][1] then
+				for _, cb in reliable_events[0] do
+					task.spawn(cb, value)
+				end
+			else
+				table.insert(reliable_event_queue[0], value)
+				if #reliable_event_queue[0] > 64 then
+					warn(`[ZAP] {#reliable_event_queue[0]} events in queue for UpdateStatus. Did you forget to attach a listener?`)
+				end
+			end
+		elseif id == 1 then -- ToggleBuildPhase
+			local value
+			local bool_2 = buffer.readu8(incoming_buff, read(1))
+			value = bit32.btest(bool_2, 0b0000000000000001)
+			if reliable_events[1][1] then
+				for _, cb in reliable_events[1] do
+					task.spawn(cb, value)
+				end
+			else
+				table.insert(reliable_event_queue[1], value)
+				if #reliable_event_queue[1] > 64 then
+					warn(`[ZAP] {#reliable_event_queue[1]} events in queue for ToggleBuildPhase. Did you forget to attach a listener?`)
+				end
+			end
+		else
+			error("Unknown event id")
+		end
+	end
+end)
 table.freeze(polling_queues_reliable)
 table.freeze(polling_queues_unreliable)
 
 local returns = {
 	SendEvents = SendEvents,
-	Remote = {
-		Fire = function(name: (string), cframe: (CFrame))
-			alloc(1)
-			buffer.writeu8(outgoing_buff, outgoing_apos, 0)
-			local len_1 = #name
-			assert(utf8.len(name) ~= nil, "value is not valid utf-8")
-			alloc(2)
-			buffer.writeu16(outgoing_buff, outgoing_apos, len_1)
-			alloc(len_1)
-			buffer.writestring(outgoing_buff, outgoing_apos, name, len_1)
-			local axis_1, angle_1 = cframe:ToAxisAngle()
-			axis_1 = axis_1 * angle_1
-			alloc(4)
-			buffer.writef32(outgoing_buff, outgoing_apos, cframe.Position.X)
-			alloc(4)
-			buffer.writef32(outgoing_buff, outgoing_apos, cframe.Position.Y)
-			alloc(4)
-			buffer.writef32(outgoing_buff, outgoing_apos, cframe.Position.Z)
-			alloc(4)
-			buffer.writef32(outgoing_buff, outgoing_apos, axis_1.X)
-			alloc(4)
-			buffer.writef32(outgoing_buff, outgoing_apos, axis_1.Y)
-			alloc(4)
-			buffer.writef32(outgoing_buff, outgoing_apos, axis_1.Z)
+	UpdateStatus = {
+		On = function(Callback: (Value: ({
+			["primary"]: (string),
+			["secondary"]: ((string)?),
+		})) -> ())
+			table.insert(reliable_events[0], Callback)
+			for _, value in reliable_event_queue[0] do
+				task.spawn(Callback, value)
+			end
+			reliable_event_queue[0] = {}
+			return function()
+				table.remove(reliable_events[0], table.find(reliable_events[0], Callback))
+			end
+		end,
+	},
+	ToggleBuildPhase = {
+		On = function(Callback: (Value: (boolean)) -> ())
+			table.insert(reliable_events[1], Callback)
+			for _, value in reliable_event_queue[1] do
+				task.spawn(Callback, value)
+			end
+			reliable_event_queue[1] = {}
+			return function()
+				table.remove(reliable_events[1], table.find(reliable_events[1], Callback))
+			end
 		end,
 	},
 }
