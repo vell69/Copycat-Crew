@@ -178,18 +178,13 @@ reliable.OnClientEvent:Connect(function(buff, inst)
 		local id = buffer.readu8(buff, read(1))
 		if id == 0 then -- UpdateStatus
 			local value
-			local bool_1 = buffer.readu8(incoming_buff, read(1))
 			value = {  }
 			local len_1 = buffer.readu16(incoming_buff, read(2))
 			value["primary"] = buffer.readstring(incoming_buff, read(len_1), len_1)
 			assert(utf8.len(value["primary"]) ~= nil, "value is not valid utf-8")
-			if bit32.btest(bool_1, 0b0000000000000001) then
-				local len_2 = buffer.readu16(incoming_buff, read(2))
-				value["secondary"] = buffer.readstring(incoming_buff, read(len_2), len_2)
-				assert(utf8.len(value["secondary"]) ~= nil, "value is not valid utf-8")
-			else
-				value["secondary"] = nil
-			end
+			local len_2 = buffer.readu16(incoming_buff, read(2))
+			value["secondary"] = buffer.readstring(incoming_buff, read(len_2), len_2)
+			assert(utf8.len(value["secondary"]) ~= nil, "value is not valid utf-8")
 			if reliable_events[0][1] then
 				for _, cb in reliable_events[0] do
 					task.spawn(cb, value)
@@ -202,8 +197,8 @@ reliable.OnClientEvent:Connect(function(buff, inst)
 			end
 		elseif id == 1 then -- ToggleBuildPhase
 			local value
-			local bool_2 = buffer.readu8(incoming_buff, read(1))
-			value = bit32.btest(bool_2, 0b0000000000000001)
+			local bool_1 = buffer.readu8(incoming_buff, read(1))
+			value = bit32.btest(bool_1, 0b0000000000000001)
 			if reliable_events[1][1] then
 				for _, cb in reliable_events[1] do
 					task.spawn(cb, value)
@@ -227,7 +222,7 @@ local returns = {
 	UpdateStatus = {
 		On = function(Callback: (Value: ({
 			["primary"]: (string),
-			["secondary"]: ((string)?),
+			["secondary"]: (string),
 		})) -> ())
 			table.insert(reliable_events[0], Callback)
 			for _, value in reliable_event_queue[0] do

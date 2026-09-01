@@ -9,7 +9,7 @@ event UpdateStatus = {
 	call: ManyAsync,
 	data: struct {
         primary: string.utf8,
-        secondary: string.utf8?,
+        secondary: string.utf8,
     }
 }
 

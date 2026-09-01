@@ -17,7 +17,9 @@ if not _G.__ZAP then
 elseif not _G.__ZAP["ZAP"] then
 	_G.__ZAP["ZAP"] = {}
 elseif _G.__ZAP["ZAP"]["ZAP"] ~= nil then
-	error(`There is already an instance of Zap with the same remote_scope of ZAP, remote_folder of ZAP and the version of {_G.__ZAP["ZAP"]["ZAP"]}. Change the remote_scope or remote_folder option of both Zap instances`)
+	error(
+		`There is already an instance of Zap with the same remote_scope of ZAP, remote_folder of ZAP and the version of {_G.__ZAP["ZAP"]["ZAP"]}. Change the remote_scope or remote_folder option of both Zap instances`
+	)
 end
 
 _G.__ZAP["ZAP"]["ZAP"] = "0.6.29"
@@ -139,14 +141,14 @@ if not RunService:IsRunning() then
 			FireAll = noop,
 			FireExcept = noop,
 			FireList = noop,
-			FireSet = noop
+			FireSet = noop,
 		}),
 		ToggleBuildPhase = table.freeze({
 			Fire = noop,
 			FireAll = noop,
 			FireExcept = noop,
 			FireList = noop,
-			FireSet = noop
+			FireSet = noop,
 		}),
 	}) :: Events
 end
@@ -203,56 +205,175 @@ table.freeze(polling_queues_unreliable)
 local returns = {
 	SendEvents = SendEvents,
 	UpdateStatus = {
-		Fire = function(Player: Player, Value: ({
-			["primary"]: (string),
-			["secondary"]: ((string)?),
-		}))
+		Fire = function(
+			Player: Player,
+			Value: {
+				["primary"]: string,
+				["secondary"]: string,
+			}
+		)
 			load_player(Player)
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 0)
-			local bool_1 = 0
-			local bool_1_pos_1 = alloc(1)
 			local len_1 = #Value["primary"]
 			assert(utf8.len(Value["primary"]) ~= nil, "value is not valid utf-8")
 			alloc(2)
 			buffer.writeu16(outgoing_buff, outgoing_apos, len_1)
 			alloc(len_1)
 			buffer.writestring(outgoing_buff, outgoing_apos, Value["primary"], len_1)
-			if Value["secondary"] ~= nil then
-				bool_1 = bit32.bor(bool_1, 0b0000000000000001)
-				local len_2 = #Value["secondary"]
-				assert(utf8.len(Value["secondary"]) ~= nil, "value is not valid utf-8")
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, len_2)
-				alloc(len_2)
-				buffer.writestring(outgoing_buff, outgoing_apos, Value["secondary"], len_2)
-			end
-			buffer.writeu8(outgoing_buff, bool_1_pos_1, bool_1)
+			local len_2 = #Value["secondary"]
+			assert(utf8.len(Value["secondary"]) ~= nil, "value is not valid utf-8")
+			alloc(2)
+			buffer.writeu16(outgoing_buff, outgoing_apos, len_2)
+			alloc(len_2)
+			buffer.writestring(outgoing_buff, outgoing_apos, Value["secondary"], len_2)
 			player_map[Player] = save()
 		end,
-		FireAll = function(Value: ({
-			["primary"]: (string),
-			["secondary"]: ((string)?),
-		}))
+		FireAll = function(Value: {
+			["primary"]: string,
+			["secondary"]: string,
+		})
 			load_empty()
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 0)
-			local bool_2 = 0
-			local bool_2_pos_1 = alloc(1)
 			local len_3 = #Value["primary"]
 			assert(utf8.len(Value["primary"]) ~= nil, "value is not valid utf-8")
 			alloc(2)
 			buffer.writeu16(outgoing_buff, outgoing_apos, len_3)
 			alloc(len_3)
 			buffer.writestring(outgoing_buff, outgoing_apos, Value["primary"], len_3)
-			if Value["secondary"] ~= nil then
+			local len_4 = #Value["secondary"]
+			assert(utf8.len(Value["secondary"]) ~= nil, "value is not valid utf-8")
+			alloc(2)
+			buffer.writeu16(outgoing_buff, outgoing_apos, len_4)
+			alloc(len_4)
+			buffer.writestring(outgoing_buff, outgoing_apos, Value["secondary"], len_4)
+			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
+			for _, player in Players:GetPlayers() do
+				load_player(player)
+				alloc(used)
+				buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)
+				table.move(inst, 1, #inst, #outgoing_inst + 1, outgoing_inst)
+				player_map[player] = save()
+			end
+		end,
+		FireExcept = function(
+			Except: Player,
+			Value: {
+				["primary"]: string,
+				["secondary"]: string,
+			}
+		)
+			load_empty()
+			alloc(1)
+			buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+			local len_5 = #Value["primary"]
+			assert(utf8.len(Value["primary"]) ~= nil, "value is not valid utf-8")
+			alloc(2)
+			buffer.writeu16(outgoing_buff, outgoing_apos, len_5)
+			alloc(len_5)
+			buffer.writestring(outgoing_buff, outgoing_apos, Value["primary"], len_5)
+			local len_6 = #Value["secondary"]
+			assert(utf8.len(Value["secondary"]) ~= nil, "value is not valid utf-8")
+			alloc(2)
+			buffer.writeu16(outgoing_buff, outgoing_apos, len_6)
+			alloc(len_6)
+			buffer.writestring(outgoing_buff, outgoing_apos, Value["secondary"], len_6)
+			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
+			for _, player in Players:GetPlayers() do
+				if player ~= Except then
+					load_player(player)
+					alloc(used)
+					buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)
+					table.move(inst, 1, #inst, #outgoing_inst + 1, outgoing_inst)
+					player_map[player] = save()
+				end
+			end
+		end,
+		FireList = function(
+			List: { Player },
+			Value: {
+				["primary"]: string,
+				["secondary"]: string,
+			}
+		)
+			load_empty()
+			alloc(1)
+			buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+			local len_7 = #Value["primary"]
+			assert(utf8.len(Value["primary"]) ~= nil, "value is not valid utf-8")
+			alloc(2)
+			buffer.writeu16(outgoing_buff, outgoing_apos, len_7)
+			alloc(len_7)
+			buffer.writestring(outgoing_buff, outgoing_apos, Value["primary"], len_7)
+			local len_8 = #Value["secondary"]
+			assert(utf8.len(Value["secondary"]) ~= nil, "value is not valid utf-8")
+			alloc(2)
+			buffer.writeu16(outgoing_buff, outgoing_apos, len_8)
+			alloc(len_8)
+			buffer.writestring(outgoing_buff, outgoing_apos, Value["secondary"], len_8)
+			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
+			for _, player in List do
+				load_player(player)
+				alloc(used)
+				buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)
+				table.move(inst, 1, #inst, #outgoing_inst + 1, outgoing_inst)
+				player_map[player] = save()
+			end
+		end,
+		FireSet = function(
+			Set: { [Player]: any },
+			Value: {
+				["primary"]: string,
+				["secondary"]: string,
+			}
+		)
+			load_empty()
+			alloc(1)
+			buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+			local len_9 = #Value["primary"]
+			assert(utf8.len(Value["primary"]) ~= nil, "value is not valid utf-8")
+			alloc(2)
+			buffer.writeu16(outgoing_buff, outgoing_apos, len_9)
+			alloc(len_9)
+			buffer.writestring(outgoing_buff, outgoing_apos, Value["primary"], len_9)
+			local len_10 = #Value["secondary"]
+			assert(utf8.len(Value["secondary"]) ~= nil, "value is not valid utf-8")
+			alloc(2)
+			buffer.writeu16(outgoing_buff, outgoing_apos, len_10)
+			alloc(len_10)
+			buffer.writestring(outgoing_buff, outgoing_apos, Value["secondary"], len_10)
+			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
+			for player in Set do
+				load_player(player)
+				alloc(used)
+				buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)
+				table.move(inst, 1, #inst, #outgoing_inst + 1, outgoing_inst)
+				player_map[player] = save()
+			end
+		end,
+	},
+	ToggleBuildPhase = {
+		Fire = function(Player: Player, Value: boolean)
+			load_player(Player)
+			alloc(1)
+			buffer.writeu8(outgoing_buff, outgoing_apos, 1)
+			local bool_1 = 0
+			local bool_1_pos_1 = alloc(1)
+			if Value then
+				bool_1 = bit32.bor(bool_1, 0b0000000000000001)
+			end
+			buffer.writeu8(outgoing_buff, bool_1_pos_1, bool_1)
+			player_map[Player] = save()
+		end,
+		FireAll = function(Value: boolean)
+			load_empty()
+			alloc(1)
+			buffer.writeu8(outgoing_buff, outgoing_apos, 1)
+			local bool_2 = 0
+			local bool_2_pos_1 = alloc(1)
+			if Value then
 				bool_2 = bit32.bor(bool_2, 0b0000000000000001)
-				local len_4 = #Value["secondary"]
-				assert(utf8.len(Value["secondary"]) ~= nil, "value is not valid utf-8")
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, len_4)
-				alloc(len_4)
-				buffer.writestring(outgoing_buff, outgoing_apos, Value["secondary"], len_4)
 			end
 			buffer.writeu8(outgoing_buff, bool_2_pos_1, bool_2)
 			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
@@ -264,29 +385,14 @@ local returns = {
 				player_map[player] = save()
 			end
 		end,
-		FireExcept = function(Except: Player, Value: ({
-			["primary"]: (string),
-			["secondary"]: ((string)?),
-		}))
+		FireExcept = function(Except: Player, Value: boolean)
 			load_empty()
 			alloc(1)
-			buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+			buffer.writeu8(outgoing_buff, outgoing_apos, 1)
 			local bool_3 = 0
 			local bool_3_pos_1 = alloc(1)
-			local len_5 = #Value["primary"]
-			assert(utf8.len(Value["primary"]) ~= nil, "value is not valid utf-8")
-			alloc(2)
-			buffer.writeu16(outgoing_buff, outgoing_apos, len_5)
-			alloc(len_5)
-			buffer.writestring(outgoing_buff, outgoing_apos, Value["primary"], len_5)
-			if Value["secondary"] ~= nil then
+			if Value then
 				bool_3 = bit32.bor(bool_3, 0b0000000000000001)
-				local len_6 = #Value["secondary"]
-				assert(utf8.len(Value["secondary"]) ~= nil, "value is not valid utf-8")
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, len_6)
-				alloc(len_6)
-				buffer.writestring(outgoing_buff, outgoing_apos, Value["secondary"], len_6)
 			end
 			buffer.writeu8(outgoing_buff, bool_3_pos_1, bool_3)
 			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
@@ -300,29 +406,14 @@ local returns = {
 				end
 			end
 		end,
-		FireList = function(List: { [unknown]: Player }, Value: ({
-			["primary"]: (string),
-			["secondary"]: ((string)?),
-		}))
+		FireList = function(List: { Player }, Value: boolean)
 			load_empty()
 			alloc(1)
-			buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+			buffer.writeu8(outgoing_buff, outgoing_apos, 1)
 			local bool_4 = 0
 			local bool_4_pos_1 = alloc(1)
-			local len_7 = #Value["primary"]
-			assert(utf8.len(Value["primary"]) ~= nil, "value is not valid utf-8")
-			alloc(2)
-			buffer.writeu16(outgoing_buff, outgoing_apos, len_7)
-			alloc(len_7)
-			buffer.writestring(outgoing_buff, outgoing_apos, Value["primary"], len_7)
-			if Value["secondary"] ~= nil then
+			if Value then
 				bool_4 = bit32.bor(bool_4, 0b0000000000000001)
-				local len_8 = #Value["secondary"]
-				assert(utf8.len(Value["secondary"]) ~= nil, "value is not valid utf-8")
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, len_8)
-				alloc(len_8)
-				buffer.writestring(outgoing_buff, outgoing_apos, Value["secondary"], len_8)
 			end
 			buffer.writeu8(outgoing_buff, bool_4_pos_1, bool_4)
 			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
@@ -334,123 +425,16 @@ local returns = {
 				player_map[player] = save()
 			end
 		end,
-		FireSet = function(Set: { [Player]: any }, Value: ({
-			["primary"]: (string),
-			["secondary"]: ((string)?),
-		}))
+		FireSet = function(Set: { [Player]: any }, Value: boolean)
 			load_empty()
 			alloc(1)
-			buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+			buffer.writeu8(outgoing_buff, outgoing_apos, 1)
 			local bool_5 = 0
 			local bool_5_pos_1 = alloc(1)
-			local len_9 = #Value["primary"]
-			assert(utf8.len(Value["primary"]) ~= nil, "value is not valid utf-8")
-			alloc(2)
-			buffer.writeu16(outgoing_buff, outgoing_apos, len_9)
-			alloc(len_9)
-			buffer.writestring(outgoing_buff, outgoing_apos, Value["primary"], len_9)
-			if Value["secondary"] ~= nil then
+			if Value then
 				bool_5 = bit32.bor(bool_5, 0b0000000000000001)
-				local len_10 = #Value["secondary"]
-				assert(utf8.len(Value["secondary"]) ~= nil, "value is not valid utf-8")
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, len_10)
-				alloc(len_10)
-				buffer.writestring(outgoing_buff, outgoing_apos, Value["secondary"], len_10)
 			end
 			buffer.writeu8(outgoing_buff, bool_5_pos_1, bool_5)
-			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
-			for player in Set do
-				load_player(player)
-				alloc(used)
-				buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)
-				table.move(inst, 1, #inst, #outgoing_inst + 1, outgoing_inst)
-				player_map[player] = save()
-			end
-		end,
-	},
-	ToggleBuildPhase = {
-		Fire = function(Player: Player, Value: (boolean))
-			load_player(Player)
-			alloc(1)
-			buffer.writeu8(outgoing_buff, outgoing_apos, 1)
-			local bool_6 = 0
-			local bool_6_pos_1 = alloc(1)
-			if Value then
-				bool_6 = bit32.bor(bool_6, 0b0000000000000001)
-			end
-			buffer.writeu8(outgoing_buff, bool_6_pos_1, bool_6)
-			player_map[Player] = save()
-		end,
-		FireAll = function(Value: (boolean))
-			load_empty()
-			alloc(1)
-			buffer.writeu8(outgoing_buff, outgoing_apos, 1)
-			local bool_7 = 0
-			local bool_7_pos_1 = alloc(1)
-			if Value then
-				bool_7 = bit32.bor(bool_7, 0b0000000000000001)
-			end
-			buffer.writeu8(outgoing_buff, bool_7_pos_1, bool_7)
-			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
-			for _, player in Players:GetPlayers() do
-				load_player(player)
-				alloc(used)
-				buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)
-				table.move(inst, 1, #inst, #outgoing_inst + 1, outgoing_inst)
-				player_map[player] = save()
-			end
-		end,
-		FireExcept = function(Except: Player, Value: (boolean))
-			load_empty()
-			alloc(1)
-			buffer.writeu8(outgoing_buff, outgoing_apos, 1)
-			local bool_8 = 0
-			local bool_8_pos_1 = alloc(1)
-			if Value then
-				bool_8 = bit32.bor(bool_8, 0b0000000000000001)
-			end
-			buffer.writeu8(outgoing_buff, bool_8_pos_1, bool_8)
-			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
-			for _, player in Players:GetPlayers() do
-				if player ~= Except then
-					load_player(player)
-					alloc(used)
-					buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)
-					table.move(inst, 1, #inst, #outgoing_inst + 1, outgoing_inst)
-					player_map[player] = save()
-				end
-			end
-		end,
-		FireList = function(List: { [unknown]: Player }, Value: (boolean))
-			load_empty()
-			alloc(1)
-			buffer.writeu8(outgoing_buff, outgoing_apos, 1)
-			local bool_9 = 0
-			local bool_9_pos_1 = alloc(1)
-			if Value then
-				bool_9 = bit32.bor(bool_9, 0b0000000000000001)
-			end
-			buffer.writeu8(outgoing_buff, bool_9_pos_1, bool_9)
-			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
-			for _, player in List do
-				load_player(player)
-				alloc(used)
-				buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)
-				table.move(inst, 1, #inst, #outgoing_inst + 1, outgoing_inst)
-				player_map[player] = save()
-			end
-		end,
-		FireSet = function(Set: { [Player]: any }, Value: (boolean))
-			load_empty()
-			alloc(1)
-			buffer.writeu8(outgoing_buff, outgoing_apos, 1)
-			local bool_10 = 0
-			local bool_10_pos_1 = alloc(1)
-			if Value then
-				bool_10 = bit32.bor(bool_10, 0b0000000000000001)
-			end
-			buffer.writeu8(outgoing_buff, bool_10_pos_1, bool_10)
 			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
 			for player in Set do
 				load_player(player)
