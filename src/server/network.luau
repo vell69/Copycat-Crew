@@ -17,9 +17,7 @@ if not _G.__ZAP then
 elseif not _G.__ZAP["ZAP"] then
 	_G.__ZAP["ZAP"] = {}
 elseif _G.__ZAP["ZAP"]["ZAP"] ~= nil then
-	error(
-		`There is already an instance of Zap with the same remote_scope of ZAP, remote_folder of ZAP and the version of {_G.__ZAP["ZAP"]["ZAP"]}. Change the remote_scope or remote_folder option of both Zap instances`
-	)
+	error(`There is already an instance of Zap with the same remote_scope of ZAP, remote_folder of ZAP and the version of {_G.__ZAP["ZAP"]["ZAP"]}. Change the remote_scope or remote_folder option of both Zap instances`)
 end
 
 _G.__ZAP["ZAP"]["ZAP"] = "0.6.29"
@@ -141,14 +139,27 @@ if not RunService:IsRunning() then
 			FireAll = noop,
 			FireExcept = noop,
 			FireList = noop,
-			FireSet = noop,
+			FireSet = noop
 		}),
-		ToggleBuildPhase = table.freeze({
+		RemoveUnit = table.freeze({
+			On = noop
+		}),
+		PlaceUnit = table.freeze({
+			On = noop
+		}),
+		EnableBuildMode = table.freeze({
 			Fire = noop,
 			FireAll = noop,
 			FireExcept = noop,
 			FireList = noop,
-			FireSet = noop,
+			FireSet = noop
+		}),
+		DisableBuildMode = table.freeze({
+			Fire = noop,
+			FireAll = noop,
+			FireExcept = noop,
+			FireList = noop,
+			FireSet = noop
 		}),
 	}) :: Events
 end
@@ -199,41 +210,69 @@ end
 
 RunService.Heartbeat:Connect(SendEvents)
 
+local reliable_events = table.create(2)
+reliable_events[1] = {}
+reliable_events[0] = {}
+reliable.OnServerEvent:Connect(function(player, buff, inst)
+	incoming_buff = buff
+	incoming_inst = inst
+	incoming_read = 0
+	incoming_ipos = 0
+	local len = buffer.len(buff)
+	while incoming_read < len do
+		local id = buffer.readu8(buff, read(1))
+		if id == 1 then -- RemoveUnit
+			local value, value2
+			local len_1 = buffer.readu16(incoming_buff, read(2))
+			value = buffer.readstring(incoming_buff, read(len_1), len_1)
+			assert(utf8.len(value) ~= nil, "value is not valid utf-8")
+			local pos_1 = Vector3.new(buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)))
+			local axisangle_1 = Vector3.new(buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)))
+			local angle_1 = axisangle_1.Magnitude
+			if angle_1 ~= 0 then
+				value2 = CFrame.fromAxisAngle(axisangle_1, angle_1) + pos_1
+			else
+				value2 = CFrame.new(pos_1)
+			end
+			for _, cb in reliable_events[1] do
+				task.spawn(cb, player, value, value2)
+			end
+		elseif id == 0 then -- PlaceUnit
+			local value, value2, value3
+			local len_2 = buffer.readu16(incoming_buff, read(2))
+			value = buffer.readstring(incoming_buff, read(len_2), len_2)
+			assert(utf8.len(value) ~= nil, "value is not valid utf-8")
+			local pos_2 = Vector3.new(buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)))
+			local axisangle_2 = Vector3.new(buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)))
+			local angle_2 = axisangle_2.Magnitude
+			if angle_2 ~= 0 then
+				value2 = CFrame.fromAxisAngle(axisangle_2, angle_2) + pos_2
+			else
+				value2 = CFrame.new(pos_2)
+			end
+			incoming_ipos = incoming_ipos + 1
+			value3 = incoming_inst[incoming_ipos]
+			assert(value3 ~= nil, "received instance is nil!")
+			assert(value3:IsA("Part"), "received instance is not of the Part class!")
+			for _, cb in reliable_events[0] do
+				task.spawn(cb, player, value, value2, value3)
+			end
+		else
+			error("Unknown event id")
+		end
+	end
+end)
 table.freeze(polling_queues_reliable)
 table.freeze(polling_queues_unreliable)
 
 local returns = {
 	SendEvents = SendEvents,
 	UpdateStatus = {
-		Fire = function(
-			Player: Player,
-			Value: {
-				["primary"]: string,
-				["secondary"]: string,
-			}
-		)
+		Fire = function(Player: Player, Value: ({
+			["primary"]: (string),
+			["secondary"]: (string),
+		}))
 			load_player(Player)
-			alloc(1)
-			buffer.writeu8(outgoing_buff, outgoing_apos, 0)
-			local len_1 = #Value["primary"]
-			assert(utf8.len(Value["primary"]) ~= nil, "value is not valid utf-8")
-			alloc(2)
-			buffer.writeu16(outgoing_buff, outgoing_apos, len_1)
-			alloc(len_1)
-			buffer.writestring(outgoing_buff, outgoing_apos, Value["primary"], len_1)
-			local len_2 = #Value["secondary"]
-			assert(utf8.len(Value["secondary"]) ~= nil, "value is not valid utf-8")
-			alloc(2)
-			buffer.writeu16(outgoing_buff, outgoing_apos, len_2)
-			alloc(len_2)
-			buffer.writestring(outgoing_buff, outgoing_apos, Value["secondary"], len_2)
-			player_map[Player] = save()
-		end,
-		FireAll = function(Value: {
-			["primary"]: string,
-			["secondary"]: string,
-		})
-			load_empty()
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 0)
 			local len_3 = #Value["primary"]
@@ -248,22 +287,12 @@ local returns = {
 			buffer.writeu16(outgoing_buff, outgoing_apos, len_4)
 			alloc(len_4)
 			buffer.writestring(outgoing_buff, outgoing_apos, Value["secondary"], len_4)
-			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
-			for _, player in Players:GetPlayers() do
-				load_player(player)
-				alloc(used)
-				buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)
-				table.move(inst, 1, #inst, #outgoing_inst + 1, outgoing_inst)
-				player_map[player] = save()
-			end
+			player_map[Player] = save()
 		end,
-		FireExcept = function(
-			Except: Player,
-			Value: {
-				["primary"]: string,
-				["secondary"]: string,
-			}
-		)
+		FireAll = function(Value: ({
+			["primary"]: (string),
+			["secondary"]: (string),
+		}))
 			load_empty()
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 0)
@@ -281,22 +310,17 @@ local returns = {
 			buffer.writestring(outgoing_buff, outgoing_apos, Value["secondary"], len_6)
 			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
 			for _, player in Players:GetPlayers() do
-				if player ~= Except then
-					load_player(player)
-					alloc(used)
-					buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)
-					table.move(inst, 1, #inst, #outgoing_inst + 1, outgoing_inst)
-					player_map[player] = save()
-				end
+				load_player(player)
+				alloc(used)
+				buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)
+				table.move(inst, 1, #inst, #outgoing_inst + 1, outgoing_inst)
+				player_map[player] = save()
 			end
 		end,
-		FireList = function(
-			List: { Player },
-			Value: {
-				["primary"]: string,
-				["secondary"]: string,
-			}
-		)
+		FireExcept = function(Except: Player, Value: ({
+			["primary"]: (string),
+			["secondary"]: (string),
+		}))
 			load_empty()
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 0)
@@ -313,21 +337,20 @@ local returns = {
 			alloc(len_8)
 			buffer.writestring(outgoing_buff, outgoing_apos, Value["secondary"], len_8)
 			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
-			for _, player in List do
-				load_player(player)
-				alloc(used)
-				buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)
-				table.move(inst, 1, #inst, #outgoing_inst + 1, outgoing_inst)
-				player_map[player] = save()
+			for _, player in Players:GetPlayers() do
+				if player ~= Except then
+					load_player(player)
+					alloc(used)
+					buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)
+					table.move(inst, 1, #inst, #outgoing_inst + 1, outgoing_inst)
+					player_map[player] = save()
+				end
 			end
 		end,
-		FireSet = function(
-			Set: { [Player]: any },
-			Value: {
-				["primary"]: string,
-				["secondary"]: string,
-			}
-		)
+		FireList = function(List: { [unknown]: Player }, Value: ({
+			["primary"]: (string),
+			["secondary"]: (string),
+		}))
 			load_empty()
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 0)
@@ -344,6 +367,34 @@ local returns = {
 			alloc(len_10)
 			buffer.writestring(outgoing_buff, outgoing_apos, Value["secondary"], len_10)
 			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
+			for _, player in List do
+				load_player(player)
+				alloc(used)
+				buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)
+				table.move(inst, 1, #inst, #outgoing_inst + 1, outgoing_inst)
+				player_map[player] = save()
+			end
+		end,
+		FireSet = function(Set: { [Player]: any }, Value: ({
+			["primary"]: (string),
+			["secondary"]: (string),
+		}))
+			load_empty()
+			alloc(1)
+			buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+			local len_11 = #Value["primary"]
+			assert(utf8.len(Value["primary"]) ~= nil, "value is not valid utf-8")
+			alloc(2)
+			buffer.writeu16(outgoing_buff, outgoing_apos, len_11)
+			alloc(len_11)
+			buffer.writestring(outgoing_buff, outgoing_apos, Value["primary"], len_11)
+			local len_12 = #Value["secondary"]
+			assert(utf8.len(Value["secondary"]) ~= nil, "value is not valid utf-8")
+			alloc(2)
+			buffer.writeu16(outgoing_buff, outgoing_apos, len_12)
+			alloc(len_12)
+			buffer.writestring(outgoing_buff, outgoing_apos, Value["secondary"], len_12)
+			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
 			for player in Set do
 				load_player(player)
 				alloc(used)
@@ -353,29 +404,37 @@ local returns = {
 			end
 		end,
 	},
-	ToggleBuildPhase = {
-		Fire = function(Player: Player, Value: boolean)
+	RemoveUnit = {
+		On = function(Callback: (Player: Player, unitName: (string), unitCFrame: (CFrame)) -> ()): () -> ()
+			table.insert(reliable_events[1], Callback)
+			return function()
+				table.remove(reliable_events[1], table.find(reliable_events[1], Callback))
+			end
+		end,
+	},
+	PlaceUnit = {
+		On = function(Callback: (Player: Player, unitName: (string), unitCFrame: (CFrame), plot: (Part)) -> ()): () -> ()
+			table.insert(reliable_events[0], Callback)
+			return function()
+				table.remove(reliable_events[0], table.find(reliable_events[0], Callback))
+			end
+		end,
+	},
+	EnableBuildMode = {
+		Fire = function(Player: Player, plot: (Part))
 			load_player(Player)
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 1)
-			local bool_1 = 0
-			local bool_1_pos_1 = alloc(1)
-			if Value then
-				bool_1 = bit32.bor(bool_1, 0b0000000000000001)
-			end
-			buffer.writeu8(outgoing_buff, bool_1_pos_1, bool_1)
+			assert(plot:IsA("Part"), "received instance is not of the Part class!")
+			table.insert(outgoing_inst, plot)
 			player_map[Player] = save()
 		end,
-		FireAll = function(Value: boolean)
+		FireAll = function(plot: (Part))
 			load_empty()
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 1)
-			local bool_2 = 0
-			local bool_2_pos_1 = alloc(1)
-			if Value then
-				bool_2 = bit32.bor(bool_2, 0b0000000000000001)
-			end
-			buffer.writeu8(outgoing_buff, bool_2_pos_1, bool_2)
+			assert(plot:IsA("Part"), "received instance is not of the Part class!")
+			table.insert(outgoing_inst, plot)
 			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
 			for _, player in Players:GetPlayers() do
 				load_player(player)
@@ -385,16 +444,12 @@ local returns = {
 				player_map[player] = save()
 			end
 		end,
-		FireExcept = function(Except: Player, Value: boolean)
+		FireExcept = function(Except: Player, plot: (Part))
 			load_empty()
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 1)
-			local bool_3 = 0
-			local bool_3_pos_1 = alloc(1)
-			if Value then
-				bool_3 = bit32.bor(bool_3, 0b0000000000000001)
-			end
-			buffer.writeu8(outgoing_buff, bool_3_pos_1, bool_3)
+			assert(plot:IsA("Part"), "received instance is not of the Part class!")
+			table.insert(outgoing_inst, plot)
 			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
 			for _, player in Players:GetPlayers() do
 				if player ~= Except then
@@ -406,16 +461,12 @@ local returns = {
 				end
 			end
 		end,
-		FireList = function(List: { Player }, Value: boolean)
+		FireList = function(List: { [unknown]: Player }, plot: (Part))
 			load_empty()
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 1)
-			local bool_4 = 0
-			local bool_4_pos_1 = alloc(1)
-			if Value then
-				bool_4 = bit32.bor(bool_4, 0b0000000000000001)
-			end
-			buffer.writeu8(outgoing_buff, bool_4_pos_1, bool_4)
+			assert(plot:IsA("Part"), "received instance is not of the Part class!")
+			table.insert(outgoing_inst, plot)
 			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
 			for _, player in List do
 				load_player(player)
@@ -425,16 +476,74 @@ local returns = {
 				player_map[player] = save()
 			end
 		end,
-		FireSet = function(Set: { [Player]: any }, Value: boolean)
+		FireSet = function(Set: { [Player]: any }, plot: (Part))
 			load_empty()
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 1)
-			local bool_5 = 0
-			local bool_5_pos_1 = alloc(1)
-			if Value then
-				bool_5 = bit32.bor(bool_5, 0b0000000000000001)
+			assert(plot:IsA("Part"), "received instance is not of the Part class!")
+			table.insert(outgoing_inst, plot)
+			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
+			for player in Set do
+				load_player(player)
+				alloc(used)
+				buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)
+				table.move(inst, 1, #inst, #outgoing_inst + 1, outgoing_inst)
+				player_map[player] = save()
 			end
-			buffer.writeu8(outgoing_buff, bool_5_pos_1, bool_5)
+		end,
+	},
+	DisableBuildMode = {
+		Fire = function(Player: Player)
+			load_player(Player)
+			alloc(1)
+			buffer.writeu8(outgoing_buff, outgoing_apos, 2)
+			player_map[Player] = save()
+		end,
+		FireAll = function()
+			load_empty()
+			alloc(1)
+			buffer.writeu8(outgoing_buff, outgoing_apos, 2)
+			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
+			for _, player in Players:GetPlayers() do
+				load_player(player)
+				alloc(used)
+				buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)
+				table.move(inst, 1, #inst, #outgoing_inst + 1, outgoing_inst)
+				player_map[player] = save()
+			end
+		end,
+		FireExcept = function(Except: Player)
+			load_empty()
+			alloc(1)
+			buffer.writeu8(outgoing_buff, outgoing_apos, 2)
+			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
+			for _, player in Players:GetPlayers() do
+				if player ~= Except then
+					load_player(player)
+					alloc(used)
+					buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)
+					table.move(inst, 1, #inst, #outgoing_inst + 1, outgoing_inst)
+					player_map[player] = save()
+				end
+			end
+		end,
+		FireList = function(List: { [unknown]: Player })
+			load_empty()
+			alloc(1)
+			buffer.writeu8(outgoing_buff, outgoing_apos, 2)
+			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
+			for _, player in List do
+				load_player(player)
+				alloc(used)
+				buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)
+				table.move(inst, 1, #inst, #outgoing_inst + 1, outgoing_inst)
+				player_map[player] = save()
+			end
+		end,
+		FireSet = function(Set: { [Player]: any })
+			load_empty()
+			alloc(1)
+			buffer.writeu8(outgoing_buff, outgoing_apos, 2)
 			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
 			for player in Set do
 				load_player(player)

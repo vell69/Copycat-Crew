@@ -103,31 +103,30 @@ function RoundService:Init(): nil
 			secondary = "",
 		})
 
-		local randomIndex = math.random(1, #workspace.Base.Spawns:GetChildren())
-		local randomSpawn = workspace.Base.Spawns:GetChildren()[randomIndex]
+		local randomIndex = math.random(1, #workspace.Bases.Base.Spawns:GetChildren())
+		local randomSpawn = workspace.Bases.Base.Spawns:GetChildren()[randomIndex]
 		builderCharacter:PivotTo(randomSpawn.CFrame)
 
-		Zap.ToggleBuildPhase.Fire(builder, true)
+		Zap.EnableBuildMode.Fire(builder, workspace.Bases.Base.Plot)
 
 		for i = Config.Round.BUILD_TIME, 1, -1 do
 			print(`Build time: {i}`)
 			task.wait(1)
 		end
 
-		Zap.ToggleBuildPhase.Fire(builder, false)
+		Zap.DisableBuildMode.Fire(builder)
 
 		print(`Builder {builder.Name} has finished building, now teleporting players to take a glimpse.`)
 		task.wait(3)
 
-		for _, player: Player in ipairs(copiers) do
+		for _, player: Player in copiers do
 			local character = player.Character
 			if not character then
 				continue
 			end
 
-			character:PivotTo(
-				workspace.Base.Spawns:GetChildren()[math.random(1, #workspace.Base.Spawns:GetChildren())].CFrame
-			)
+			local base = workspace.Bases.Base
+			character:PivotTo(base.Spawns:GetChildren()[math.random(1, #base.Spawns:GetChildren())].CFrame)
 		end
 
 		for i = Config.Round.GLIMPSE_TIME, 1, -1 do
@@ -137,6 +136,46 @@ function RoundService:Init(): nil
 
 		print("Glimpse time is over, now teleporting players to copy the build.")
 		task.wait(3)
+
+		for _, player: Player in copiers do
+			local character = player.Character
+			if not character then
+				continue
+			end
+
+			local base = workspace.Bases.Base
+			local index = #workspace.Bases:GetChildren() + 1
+			local _, size = base:GetBoundingBox()
+			local x = (index - 1) * (size.X + Config.Round.BASE_SPACING)
+
+			base = base:Clone()
+			base.Parent = workspace.Bases
+			base.Name = `Base_{player.UserId}`
+			base:PivotTo(base:GetPivot() * CFrame.new(x, 0, 0))
+			character:PivotTo(base.Spawns:GetChildren()[math.random(1, #base.Spawns:GetChildren())].CFrame)
+
+			Zap.EnableBuildMode.Fire(player, base.Plot)
+		end
+
+		for i = Config.Round.COPYING_TIME, 1, -1 do
+			print(`Copying time: {i}`)
+			task.wait(1)
+		end
+
+		Zap.DisableBuildMode.FireList(copiers)
+
+		print("Copying time is over, restarting the round.")
+		task.wait(3)
+
+		for _, player: Player in Players:GetPlayers() do
+			player:LoadCharacterAsync()
+		end
+
+		for _, base: Model in workspace.Bases:GetChildren() do
+			if base.Name ~= "Base" then
+				base:Destroy()
+			end
+		end
 
 		trove:Destroy()
 	end

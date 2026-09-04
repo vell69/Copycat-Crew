@@ -135,7 +135,16 @@ if not RunService:IsRunning() then
 		UpdateStatus = table.freeze({
 			On = noop
 		}),
-		ToggleBuildPhase = table.freeze({
+		RemoveUnit = table.freeze({
+			Fire = noop
+		}),
+		PlaceUnit = table.freeze({
+			Fire = noop
+		}),
+		EnableBuildMode = table.freeze({
+			On = noop
+		}),
+		DisableBuildMode = table.freeze({
 			On = noop
 		}),
 	}) :: Events
@@ -162,12 +171,14 @@ end
 
 RunService.Heartbeat:Connect(SendEvents)
 
-local reliable_events = table.create(2)
-local reliable_event_queue: { [number]: { any } } = table.create(2)
+local reliable_events = table.create(3)
+local reliable_event_queue: { [number]: { any } } = table.create(3)
 reliable_events[0] = {}
 reliable_event_queue[0] = {}
 reliable_events[1] = {}
 reliable_event_queue[1] = {}
+reliable_events[2] = {}
+reliable_event_queue[2] = 0
 reliable.OnClientEvent:Connect(function(buff, inst)
 	incoming_buff = buff
 	incoming_inst = inst
@@ -195,10 +206,12 @@ reliable.OnClientEvent:Connect(function(buff, inst)
 					warn(`[ZAP] {#reliable_event_queue[0]} events in queue for UpdateStatus. Did you forget to attach a listener?`)
 				end
 			end
-		elseif id == 1 then -- ToggleBuildPhase
+		elseif id == 1 then -- EnableBuildMode
 			local value
-			local bool_1 = buffer.readu8(incoming_buff, read(1))
-			value = bit32.btest(bool_1, 0b0000000000000001)
+			incoming_ipos = incoming_ipos + 1
+			value = incoming_inst[incoming_ipos]
+			assert(value ~= nil, "received instance is nil!")
+			assert(value:IsA("Part"), "received instance is not of the Part class!")
 			if reliable_events[1][1] then
 				for _, cb in reliable_events[1] do
 					task.spawn(cb, value)
@@ -206,7 +219,19 @@ reliable.OnClientEvent:Connect(function(buff, inst)
 			else
 				table.insert(reliable_event_queue[1], value)
 				if #reliable_event_queue[1] > 64 then
-					warn(`[ZAP] {#reliable_event_queue[1]} events in queue for ToggleBuildPhase. Did you forget to attach a listener?`)
+					warn(`[ZAP] {#reliable_event_queue[1]} events in queue for EnableBuildMode. Did you forget to attach a listener?`)
+				end
+			end
+		elseif id == 2 then -- DisableBuildMode
+			local value
+			if reliable_events[2][1] then
+				for _, cb in reliable_events[2] do
+					task.spawn(cb, value)
+				end
+			else
+				reliable_event_queue[2] += 1
+				if reliable_event_queue[2] > 16 then
+					warn(`[ZAP] {reliable_event_queue[2]} events in queue for DisableBuildMode. Did you forget to attach a listener?`)
 				end
 			end
 		else
@@ -234,8 +259,62 @@ local returns = {
 			end
 		end,
 	},
-	ToggleBuildPhase = {
-		On = function(Callback: (Value: (boolean)) -> ())
+	RemoveUnit = {
+		Fire = function(unitName: (string), unitCFrame: (CFrame))
+			alloc(1)
+			buffer.writeu8(outgoing_buff, outgoing_apos, 1)
+			local len_3 = #unitName
+			assert(utf8.len(unitName) ~= nil, "value is not valid utf-8")
+			alloc(2)
+			buffer.writeu16(outgoing_buff, outgoing_apos, len_3)
+			alloc(len_3)
+			buffer.writestring(outgoing_buff, outgoing_apos, unitName, len_3)
+			local axis_1, angle_1 = unitCFrame:ToAxisAngle()
+			axis_1 = axis_1 * angle_1
+			alloc(4)
+			buffer.writef32(outgoing_buff, outgoing_apos, unitCFrame.Position.X)
+			alloc(4)
+			buffer.writef32(outgoing_buff, outgoing_apos, unitCFrame.Position.Y)
+			alloc(4)
+			buffer.writef32(outgoing_buff, outgoing_apos, unitCFrame.Position.Z)
+			alloc(4)
+			buffer.writef32(outgoing_buff, outgoing_apos, axis_1.X)
+			alloc(4)
+			buffer.writef32(outgoing_buff, outgoing_apos, axis_1.Y)
+			alloc(4)
+			buffer.writef32(outgoing_buff, outgoing_apos, axis_1.Z)
+		end,
+	},
+	PlaceUnit = {
+		Fire = function(unitName: (string), unitCFrame: (CFrame), plot: (Part))
+			alloc(1)
+			buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+			local len_4 = #unitName
+			assert(utf8.len(unitName) ~= nil, "value is not valid utf-8")
+			alloc(2)
+			buffer.writeu16(outgoing_buff, outgoing_apos, len_4)
+			alloc(len_4)
+			buffer.writestring(outgoing_buff, outgoing_apos, unitName, len_4)
+			local axis_2, angle_2 = unitCFrame:ToAxisAngle()
+			axis_2 = axis_2 * angle_2
+			alloc(4)
+			buffer.writef32(outgoing_buff, outgoing_apos, unitCFrame.Position.X)
+			alloc(4)
+			buffer.writef32(outgoing_buff, outgoing_apos, unitCFrame.Position.Y)
+			alloc(4)
+			buffer.writef32(outgoing_buff, outgoing_apos, unitCFrame.Position.Z)
+			alloc(4)
+			buffer.writef32(outgoing_buff, outgoing_apos, axis_2.X)
+			alloc(4)
+			buffer.writef32(outgoing_buff, outgoing_apos, axis_2.Y)
+			alloc(4)
+			buffer.writef32(outgoing_buff, outgoing_apos, axis_2.Z)
+			assert(plot:IsA("Part"), "received instance is not of the Part class!")
+			table.insert(outgoing_inst, plot)
+		end,
+	},
+	EnableBuildMode = {
+		On = function(Callback: (plot: (Part)) -> ())
 			table.insert(reliable_events[1], Callback)
 			for _, value in reliable_event_queue[1] do
 				task.spawn(Callback, value)
@@ -243,6 +322,18 @@ local returns = {
 			reliable_event_queue[1] = {}
 			return function()
 				table.remove(reliable_events[1], table.find(reliable_events[1], Callback))
+			end
+		end,
+	},
+	DisableBuildMode = {
+		On = function(Callback: () -> ())
+			table.insert(reliable_events[2], Callback)
+			for _ = 1, reliable_event_queue[2] do
+				task.spawn(Callback)
+			end
+			reliable_event_queue[2] = 0
+			return function()
+				table.remove(reliable_events[2], table.find(reliable_events[2], Callback))
 			end
 		end,
 	},

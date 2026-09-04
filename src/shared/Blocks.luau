@@ -30,7 +30,7 @@ return {
 	},
 
 	["Purple"] = {
-		name = "Purple",
+		name = "Purple Block",
 		color = Color3.fromRGB(98, 37, 209),
 	},
 } :: { [string]: BlockData }

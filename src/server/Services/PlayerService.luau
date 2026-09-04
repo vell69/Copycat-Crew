@@ -1,11 +1,13 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Blocks = require(ReplicatedStorage.Shared.Blocks)
 local Data = require(ReplicatedStorage.Shared.Data).server
+local Zap = require(script.Parent.Parent.network)
 
 local PlayerService = {}
 
-local function getWorkspacePlayersFolder() : Folder
+local function getWorkspacePlayersFolder(): Folder
 	local folder = workspace:FindFirstChild("Players")
 
 	if not folder then
@@ -17,7 +19,7 @@ local function getWorkspacePlayersFolder() : Folder
 	return folder
 end
 
-function PlayerService:Init() : nil
+function PlayerService:Init()
 	local function onPlayerAdded(player: Player)
 		self:_playerAdded(player)
 	end
@@ -32,9 +34,19 @@ function PlayerService:Init() : nil
 	for _, player: Player in Players:GetPlayers() do
 		task.spawn(onPlayerAdded, player)
 	end
+
+	Zap.PlaceUnit.On(function(_player: Player, name: string, cframe: CFrame, _plot: Instance)
+		local unit = Instance.new("Part")
+		unit.Color = Blocks[name].color
+		unit.Size = Vector3.new(4, 4, 4)
+		unit.CFrame = cframe
+		unit.Anchored = true
+		unit.CanCollide = true
+		unit.Parent = workspace
+	end)
 end
 
-function PlayerService:_playerAdded(player: Player) : nil
+function PlayerService:_playerAdded(player: Player)
 	local playerData = Data.Service:waitForData(player)
 	assert(playerData, `[Roll]: failed to fetch {player.Name}'s data`)
 
@@ -50,8 +62,6 @@ function PlayerService:_playerAdded(player: Player) : nil
 	player.CharacterAdded:Connect(characterAdded)
 end
 
-function PlayerService:_playerRemoving(_player: Player) : nil
-
-end
+function PlayerService:_playerRemoving(_player: Player) end
 
 return PlayerService

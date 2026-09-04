@@ -13,9 +13,29 @@ event UpdateStatus = {
     }
 }
 
-event ToggleBuildPhase = {
+event EnableBuildMode = {
 	from: Server,
 	type: Reliable,
 	call: ManyAsync,
-	data: (boolean)
+	data: (plot: Instance.Part)
+}
+
+event DisableBuildMode = {
+	from: Server,
+	type: Reliable,
+	call: ManyAsync
+}
+
+event PlaceUnit = {
+	from: Client,
+	type: Reliable,
+	call: ManyAsync,
+	data: (unitName: string.utf8, unitCFrame: CFrame, plot: Instance.Part)
+}
+
+event RemoveUnit = {
+	from: Client,
+	type: Reliable,
+	call: ManyAsync,
+	data: (unitName: string.utf8, unitCFrame: CFrame)
 }
