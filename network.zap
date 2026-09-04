@@ -30,12 +30,12 @@ event PlaceUnit = {
 	from: Client,
 	type: Reliable,
 	call: ManyAsync,
-	data: (unitName: string.utf8, unitCFrame: CFrame, plot: Instance.Part)
+	data: (unitName: string.utf8, unitShape: string.utf8, unitCFrame: CFrame, unitFolder: Instance.Folder)
 }
 
 event RemoveUnit = {
 	from: Client,
 	type: Reliable,
 	call: ManyAsync,
-	data: (unitName: string.utf8, unitCFrame: CFrame)
+	data: (unitId: string.utf8, unitFolder: Instance.Folder)
 }

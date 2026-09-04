@@ -260,15 +260,35 @@ local returns = {
 		end,
 	},
 	RemoveUnit = {
-		Fire = function(unitName: (string), unitCFrame: (CFrame))
+		Fire = function(unitId: (string), unitFolder: (Folder))
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 1)
-			local len_3 = #unitName
-			assert(utf8.len(unitName) ~= nil, "value is not valid utf-8")
+			local len_3 = #unitId
+			assert(utf8.len(unitId) ~= nil, "value is not valid utf-8")
 			alloc(2)
 			buffer.writeu16(outgoing_buff, outgoing_apos, len_3)
 			alloc(len_3)
-			buffer.writestring(outgoing_buff, outgoing_apos, unitName, len_3)
+			buffer.writestring(outgoing_buff, outgoing_apos, unitId, len_3)
+			assert(unitFolder:IsA("Folder"), "received instance is not of the Folder class!")
+			table.insert(outgoing_inst, unitFolder)
+		end,
+	},
+	PlaceUnit = {
+		Fire = function(unitName: (string), unitShape: (string), unitCFrame: (CFrame), unitFolder: (Folder))
+			alloc(1)
+			buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+			local len_4 = #unitName
+			assert(utf8.len(unitName) ~= nil, "value is not valid utf-8")
+			alloc(2)
+			buffer.writeu16(outgoing_buff, outgoing_apos, len_4)
+			alloc(len_4)
+			buffer.writestring(outgoing_buff, outgoing_apos, unitName, len_4)
+			local len_5 = #unitShape
+			assert(utf8.len(unitShape) ~= nil, "value is not valid utf-8")
+			alloc(2)
+			buffer.writeu16(outgoing_buff, outgoing_apos, len_5)
+			alloc(len_5)
+			buffer.writestring(outgoing_buff, outgoing_apos, unitShape, len_5)
 			local axis_1, angle_1 = unitCFrame:ToAxisAngle()
 			axis_1 = axis_1 * angle_1
 			alloc(4)
@@ -283,34 +303,8 @@ local returns = {
 			buffer.writef32(outgoing_buff, outgoing_apos, axis_1.Y)
 			alloc(4)
 			buffer.writef32(outgoing_buff, outgoing_apos, axis_1.Z)
-		end,
-	},
-	PlaceUnit = {
-		Fire = function(unitName: (string), unitCFrame: (CFrame), plot: (Part))
-			alloc(1)
-			buffer.writeu8(outgoing_buff, outgoing_apos, 0)
-			local len_4 = #unitName
-			assert(utf8.len(unitName) ~= nil, "value is not valid utf-8")
-			alloc(2)
-			buffer.writeu16(outgoing_buff, outgoing_apos, len_4)
-			alloc(len_4)
-			buffer.writestring(outgoing_buff, outgoing_apos, unitName, len_4)
-			local axis_2, angle_2 = unitCFrame:ToAxisAngle()
-			axis_2 = axis_2 * angle_2
-			alloc(4)
-			buffer.writef32(outgoing_buff, outgoing_apos, unitCFrame.Position.X)
-			alloc(4)
-			buffer.writef32(outgoing_buff, outgoing_apos, unitCFrame.Position.Y)
-			alloc(4)
-			buffer.writef32(outgoing_buff, outgoing_apos, unitCFrame.Position.Z)
-			alloc(4)
-			buffer.writef32(outgoing_buff, outgoing_apos, axis_2.X)
-			alloc(4)
-			buffer.writef32(outgoing_buff, outgoing_apos, axis_2.Y)
-			alloc(4)
-			buffer.writef32(outgoing_buff, outgoing_apos, axis_2.Z)
-			assert(plot:IsA("Part"), "received instance is not of the Part class!")
-			table.insert(outgoing_inst, plot)
+			assert(unitFolder:IsA("Folder"), "received instance is not of the Folder class!")
+			table.insert(outgoing_inst, unitFolder)
 		end,
 	},
 	EnableBuildMode = {

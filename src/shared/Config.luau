@@ -15,7 +15,7 @@ return {
 		REQUIRED_PLAYERS = 2,
 		INITIALIZATION_TIME = 0,
 		INTERMISSION_TIME = RunService:IsStudio() and 5 or 40,
-		BUILD_TIME = RunService:IsStudio() and 60 or 30,
+		BUILD_TIME = RunService:IsStudio() and 600 or 30,
 		GLIMPSE_TIME = RunService:IsStudio() and 5 or 10,
 		COPYING_TIME = RunService:IsStudio() and 30 or 60,
 		BASE_SPACING = 25,

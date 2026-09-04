@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
 
 local Blocks = require(ReplicatedStorage.Shared.Blocks)
 local Data = require(ReplicatedStorage.Shared.Data).server
@@ -35,14 +36,35 @@ function PlayerService:Init()
 		task.spawn(onPlayerAdded, player)
 	end
 
-	Zap.PlaceUnit.On(function(_player: Player, name: string, cframe: CFrame, _plot: Instance)
+	Zap.PlaceUnit.On(function(_player: Player, name: string, shape: string, cframe: CFrame, folder: Folder)
 		local unit = Instance.new("Part")
+		unit.Name = name
 		unit.Color = Blocks[name].color
 		unit.Size = Vector3.new(4, 4, 4)
+		unit.Shape = Enum.PartType[shape]
 		unit.CFrame = cframe
 		unit.Anchored = true
 		unit.CanCollide = true
-		unit.Parent = workspace
+		unit.Parent = folder
+		unit:SetAttribute("id", HttpService:GenerateGUID(false))
+	end)
+
+	Zap.RemoveUnit.On(function(player: Player, unitId: string, folder: Folder)
+		local unit = nil
+
+		for _, _unit in folder:GetChildren() do
+			if _unit:GetAttribute("id") == unitId then
+				unit = _unit
+				break
+			end
+		end
+
+		if not unit then
+			error(`[RemoveUnit]: {player.Name} tried to remove a non-existing block`)
+			return
+		end
+
+		unit:Destroy()
 	end)
 end
 

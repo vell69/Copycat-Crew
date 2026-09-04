@@ -226,36 +226,35 @@ reliable.OnServerEvent:Connect(function(player, buff, inst)
 			local len_1 = buffer.readu16(incoming_buff, read(2))
 			value = buffer.readstring(incoming_buff, read(len_1), len_1)
 			assert(utf8.len(value) ~= nil, "value is not valid utf-8")
-			local pos_1 = Vector3.new(buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)))
-			local axisangle_1 = Vector3.new(buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)))
-			local angle_1 = axisangle_1.Magnitude
-			if angle_1 ~= 0 then
-				value2 = CFrame.fromAxisAngle(axisangle_1, angle_1) + pos_1
-			else
-				value2 = CFrame.new(pos_1)
-			end
+			incoming_ipos = incoming_ipos + 1
+			value2 = incoming_inst[incoming_ipos]
+			assert(value2 ~= nil, "received instance is nil!")
+			assert(value2:IsA("Folder"), "received instance is not of the Folder class!")
 			for _, cb in reliable_events[1] do
 				task.spawn(cb, player, value, value2)
 			end
 		elseif id == 0 then -- PlaceUnit
-			local value, value2, value3
+			local value, value2, value3, value4
 			local len_2 = buffer.readu16(incoming_buff, read(2))
 			value = buffer.readstring(incoming_buff, read(len_2), len_2)
 			assert(utf8.len(value) ~= nil, "value is not valid utf-8")
-			local pos_2 = Vector3.new(buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)))
-			local axisangle_2 = Vector3.new(buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)))
-			local angle_2 = axisangle_2.Magnitude
-			if angle_2 ~= 0 then
-				value2 = CFrame.fromAxisAngle(axisangle_2, angle_2) + pos_2
+			local len_3 = buffer.readu16(incoming_buff, read(2))
+			value2 = buffer.readstring(incoming_buff, read(len_3), len_3)
+			assert(utf8.len(value2) ~= nil, "value is not valid utf-8")
+			local pos_1 = Vector3.new(buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)))
+			local axisangle_1 = Vector3.new(buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)))
+			local angle_1 = axisangle_1.Magnitude
+			if angle_1 ~= 0 then
+				value3 = CFrame.fromAxisAngle(axisangle_1, angle_1) + pos_1
 			else
-				value2 = CFrame.new(pos_2)
+				value3 = CFrame.new(pos_1)
 			end
 			incoming_ipos = incoming_ipos + 1
-			value3 = incoming_inst[incoming_ipos]
-			assert(value3 ~= nil, "received instance is nil!")
-			assert(value3:IsA("Part"), "received instance is not of the Part class!")
+			value4 = incoming_inst[incoming_ipos]
+			assert(value4 ~= nil, "received instance is nil!")
+			assert(value4:IsA("Folder"), "received instance is not of the Folder class!")
 			for _, cb in reliable_events[0] do
-				task.spawn(cb, player, value, value2, value3)
+				task.spawn(cb, player, value, value2, value3, value4)
 			end
 		else
 			error("Unknown event id")
@@ -275,18 +274,18 @@ local returns = {
 			load_player(Player)
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 0)
-			local len_3 = #Value["primary"]
+			local len_4 = #Value["primary"]
 			assert(utf8.len(Value["primary"]) ~= nil, "value is not valid utf-8")
-			alloc(2)
-			buffer.writeu16(outgoing_buff, outgoing_apos, len_3)
-			alloc(len_3)
-			buffer.writestring(outgoing_buff, outgoing_apos, Value["primary"], len_3)
-			local len_4 = #Value["secondary"]
-			assert(utf8.len(Value["secondary"]) ~= nil, "value is not valid utf-8")
 			alloc(2)
 			buffer.writeu16(outgoing_buff, outgoing_apos, len_4)
 			alloc(len_4)
-			buffer.writestring(outgoing_buff, outgoing_apos, Value["secondary"], len_4)
+			buffer.writestring(outgoing_buff, outgoing_apos, Value["primary"], len_4)
+			local len_5 = #Value["secondary"]
+			assert(utf8.len(Value["secondary"]) ~= nil, "value is not valid utf-8")
+			alloc(2)
+			buffer.writeu16(outgoing_buff, outgoing_apos, len_5)
+			alloc(len_5)
+			buffer.writestring(outgoing_buff, outgoing_apos, Value["secondary"], len_5)
 			player_map[Player] = save()
 		end,
 		FireAll = function(Value: ({
@@ -296,18 +295,18 @@ local returns = {
 			load_empty()
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 0)
-			local len_5 = #Value["primary"]
+			local len_6 = #Value["primary"]
 			assert(utf8.len(Value["primary"]) ~= nil, "value is not valid utf-8")
-			alloc(2)
-			buffer.writeu16(outgoing_buff, outgoing_apos, len_5)
-			alloc(len_5)
-			buffer.writestring(outgoing_buff, outgoing_apos, Value["primary"], len_5)
-			local len_6 = #Value["secondary"]
-			assert(utf8.len(Value["secondary"]) ~= nil, "value is not valid utf-8")
 			alloc(2)
 			buffer.writeu16(outgoing_buff, outgoing_apos, len_6)
 			alloc(len_6)
-			buffer.writestring(outgoing_buff, outgoing_apos, Value["secondary"], len_6)
+			buffer.writestring(outgoing_buff, outgoing_apos, Value["primary"], len_6)
+			local len_7 = #Value["secondary"]
+			assert(utf8.len(Value["secondary"]) ~= nil, "value is not valid utf-8")
+			alloc(2)
+			buffer.writeu16(outgoing_buff, outgoing_apos, len_7)
+			alloc(len_7)
+			buffer.writestring(outgoing_buff, outgoing_apos, Value["secondary"], len_7)
 			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
 			for _, player in Players:GetPlayers() do
 				load_player(player)
@@ -324,18 +323,18 @@ local returns = {
 			load_empty()
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 0)
-			local len_7 = #Value["primary"]
+			local len_8 = #Value["primary"]
 			assert(utf8.len(Value["primary"]) ~= nil, "value is not valid utf-8")
-			alloc(2)
-			buffer.writeu16(outgoing_buff, outgoing_apos, len_7)
-			alloc(len_7)
-			buffer.writestring(outgoing_buff, outgoing_apos, Value["primary"], len_7)
-			local len_8 = #Value["secondary"]
-			assert(utf8.len(Value["secondary"]) ~= nil, "value is not valid utf-8")
 			alloc(2)
 			buffer.writeu16(outgoing_buff, outgoing_apos, len_8)
 			alloc(len_8)
-			buffer.writestring(outgoing_buff, outgoing_apos, Value["secondary"], len_8)
+			buffer.writestring(outgoing_buff, outgoing_apos, Value["primary"], len_8)
+			local len_9 = #Value["secondary"]
+			assert(utf8.len(Value["secondary"]) ~= nil, "value is not valid utf-8")
+			alloc(2)
+			buffer.writeu16(outgoing_buff, outgoing_apos, len_9)
+			alloc(len_9)
+			buffer.writestring(outgoing_buff, outgoing_apos, Value["secondary"], len_9)
 			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
 			for _, player in Players:GetPlayers() do
 				if player ~= Except then
@@ -354,18 +353,18 @@ local returns = {
 			load_empty()
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 0)
-			local len_9 = #Value["primary"]
+			local len_10 = #Value["primary"]
 			assert(utf8.len(Value["primary"]) ~= nil, "value is not valid utf-8")
-			alloc(2)
-			buffer.writeu16(outgoing_buff, outgoing_apos, len_9)
-			alloc(len_9)
-			buffer.writestring(outgoing_buff, outgoing_apos, Value["primary"], len_9)
-			local len_10 = #Value["secondary"]
-			assert(utf8.len(Value["secondary"]) ~= nil, "value is not valid utf-8")
 			alloc(2)
 			buffer.writeu16(outgoing_buff, outgoing_apos, len_10)
 			alloc(len_10)
-			buffer.writestring(outgoing_buff, outgoing_apos, Value["secondary"], len_10)
+			buffer.writestring(outgoing_buff, outgoing_apos, Value["primary"], len_10)
+			local len_11 = #Value["secondary"]
+			assert(utf8.len(Value["secondary"]) ~= nil, "value is not valid utf-8")
+			alloc(2)
+			buffer.writeu16(outgoing_buff, outgoing_apos, len_11)
+			alloc(len_11)
+			buffer.writestring(outgoing_buff, outgoing_apos, Value["secondary"], len_11)
 			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
 			for _, player in List do
 				load_player(player)
@@ -382,18 +381,18 @@ local returns = {
 			load_empty()
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 0)
-			local len_11 = #Value["primary"]
+			local len_12 = #Value["primary"]
 			assert(utf8.len(Value["primary"]) ~= nil, "value is not valid utf-8")
-			alloc(2)
-			buffer.writeu16(outgoing_buff, outgoing_apos, len_11)
-			alloc(len_11)
-			buffer.writestring(outgoing_buff, outgoing_apos, Value["primary"], len_11)
-			local len_12 = #Value["secondary"]
-			assert(utf8.len(Value["secondary"]) ~= nil, "value is not valid utf-8")
 			alloc(2)
 			buffer.writeu16(outgoing_buff, outgoing_apos, len_12)
 			alloc(len_12)
-			buffer.writestring(outgoing_buff, outgoing_apos, Value["secondary"], len_12)
+			buffer.writestring(outgoing_buff, outgoing_apos, Value["primary"], len_12)
+			local len_13 = #Value["secondary"]
+			assert(utf8.len(Value["secondary"]) ~= nil, "value is not valid utf-8")
+			alloc(2)
+			buffer.writeu16(outgoing_buff, outgoing_apos, len_13)
+			alloc(len_13)
+			buffer.writestring(outgoing_buff, outgoing_apos, Value["secondary"], len_13)
 			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
 			for player in Set do
 				load_player(player)
@@ -405,7 +404,7 @@ local returns = {
 		end,
 	},
 	RemoveUnit = {
-		On = function(Callback: (Player: Player, unitName: (string), unitCFrame: (CFrame)) -> ()): () -> ()
+		On = function(Callback: (Player: Player, unitId: (string), unitFolder: (Folder)) -> ()): () -> ()
 			table.insert(reliable_events[1], Callback)
 			return function()
 				table.remove(reliable_events[1], table.find(reliable_events[1], Callback))
@@ -413,7 +412,7 @@ local returns = {
 		end,
 	},
 	PlaceUnit = {
-		On = function(Callback: (Player: Player, unitName: (string), unitCFrame: (CFrame), plot: (Part)) -> ()): () -> ()
+		On = function(Callback: (Player: Player, unitName: (string), unitShape: (string), unitCFrame: (CFrame), unitFolder: (Folder)) -> ()): () -> ()
 			table.insert(reliable_events[0], Callback)
 			return function()
 				table.remove(reliable_events[0], table.find(reliable_events[0], Callback))

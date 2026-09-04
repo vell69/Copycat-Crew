@@ -25,6 +25,8 @@ local BuildController = {
 	InDeleteMode = false,
 	SelectedUnit = nil,
 	PreviewModel = nil,
+	PreviewShape = "Block",
+	PreviewOrientation = CFrame.new(),
 	PreviewModelSize = nil,
 	Plot = nil,
 	CurrentPreviewCell = nil,
@@ -67,6 +69,7 @@ function BuildController:ClickDelete()
 		buildGui.Tools.Build.Image = "rbxassetid://131266569874999"
 		buildGui.ColorBoard.Visible = false
 	else
+		self:ExitDeleteMode()
 		buildGui.Tools.Delete.Image = "rbxassetid://82271091328799"
 	end
 end
@@ -141,10 +144,6 @@ function BuildController:Init()
 	end)
 end
 
-function BuildController:EnterBuildMode() end
-
-function BuildController:ExitBuildMode() end
-
 function BuildController:BindBlock(block: string)
 	local template = buildGui.ColorBoard.Container:FindFirstChild(block)
 	if template then
@@ -159,6 +158,9 @@ function BuildController:BindBlock(block: string)
 
 	if self.PreviewModel then
 		self.PreviewModelSize = self.PreviewModel.Size
+		--self.PreviewShape = "Block"
+		self.PreviewOrientation = CFrame.new()
+		self.PreviewModel.Shape = Enum.PartType[self.PreviewShape]
 		self.PreviewVisible = false
 		self.PreviewDirty = true
 	else
@@ -181,11 +183,21 @@ function BuildController:BindBlock(block: string)
 
 			self:TryPlace()
 		elseif input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.R then
-			print("rotate")
+			self.PreviewOrientation *= CFrame.Angles(0, math.rad(90), 0)
+			self.PreviewDirty = true
 		elseif input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.T then
-			print("flip")
+			self.PreviewOrientation *= CFrame.Angles(0, 0, math.rad(90))
+			self.PreviewDirty = true
 		elseif input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.F then
-			print("reform")
+			if self.PreviewShape == "Block" then
+				self.PreviewShape = "Wedge"
+			elseif self.PreviewShape == "Wedge" then
+				self.PreviewShape = "Cylinder"
+			else
+				self.PreviewShape = "Block"
+			end
+
+			self.PreviewModel.Shape = Enum.PartType[self.PreviewShape]
 		end
 	end))
 end
@@ -201,7 +213,10 @@ function BuildController:Unbind()
 	self.SelectedUnit = nil
 	self.CurrentPreviewCell = nil
 	self.CurrentPlot = nil
+	self.PreviewShape = nil
 	self.PreviewModelSize = nil
+	self.PreviewShape = "Block"
+	self.PreviewOrientation = CFrame.new()
 	self.PreviewDirty = true
 	self.PreviewVisible = false
 	self.PreviewLastCFrame = nil
@@ -255,8 +270,7 @@ function BuildController:RefreshOccupiedCells()
 
 	for _, placed in ipairs(self.Plot.Parent.Units:GetChildren()) do
 		if placed:IsA("Instance") then
-			local currentCFrame, _ = placed:GetBoundingBox()
-			local x, z, layer = self:WorldToGrid(currentCFrame.Position, plot, blockSize)
+			local x, z, layer = self:WorldToGrid(placed.Position, plot, blockSize)
 			local key = `{x},{z}`
 
 			self.CellStackCounts[key] = (self.CellStackCounts[key] or 0) + 1
@@ -357,16 +371,17 @@ function BuildController:UpdatePreview()
 		self.PreviewVisible = true
 	end
 
-	if not self.PreviewLastCFrame or self.PreviewLastCFrame ~= targetCFrame then
-		self.PreviewModel.CFrame = targetCFrame
-		self.PreviewLastCFrame = targetCFrame
+	local orientedCFrame = targetCFrame * self.PreviewOrientation
+	if not self.PreviewLastCFrame or self.PreviewLastCFrame ~= orientedCFrame then
+		self.PreviewModel.CFrame = orientedCFrame
+		self.PreviewLastCFrame = orientedCFrame
 	end
 
 	self.CurrentPreviewCell = {
 		x = xIndex,
 		z = zIndex,
 		layer = targetLayer,
-		cframe = targetCFrame,
+		cframe = orientedCFrame,
 	}
 end
 
@@ -380,8 +395,7 @@ function BuildController:TryPlace()
 	self.OccupiedPositions[`{self.CurrentPreviewCell.x},{self.CurrentPreviewCell.z},{self.CurrentPreviewCell.layer}`] =
 		true
 
-	Zap.PlaceUnit.Fire(self.SelectedUnit, self.CurrentPreviewCell.cframe, self.Plot)
-
+	Zap.PlaceUnit.Fire(self.SelectedUnit, self.PreviewShape, self.CurrentPreviewCell.cframe, self.Plot.Parent.Units)
 	self.PreviewDirty = true
 end
 
@@ -463,17 +477,18 @@ function BuildController:UpdateDeleteHover()
 	if rayResult and rayResult.Instance then
 		local hitPart = rayResult.Instance
 		local block = nil
-
 		local current = hitPart
+
 		while current and current ~= unitsFolder do
 			if current.Parent == unitsFolder then
 				block = current
 				break
 			end
+
 			current = current.Parent
 		end
 
-		if block and block:IsA("Model") then
+		if block and (block:IsA("BasePart") or block:IsA("Model")) then
 			self.HoveredUnit = block
 			if self.SelectionBox then
 				self.SelectionBox.Adornee = block
@@ -483,6 +498,7 @@ function BuildController:UpdateDeleteHover()
 	end
 
 	self.HoveredUnit = nil
+
 	if self.SelectionBox then
 		self.SelectionBox.Adornee = nil
 	end
@@ -499,25 +515,27 @@ function BuildController:TryDelete()
 		return
 	end
 
-	local plotBase = self.Plot and self.Plot:FindFirstChild("Base")
-	if plotBase and self.PreviewModelSize then
-		local blockCFrame, _ = self.HoveredUnit:GetBoundingBox()
-		local x, z, layer = self:WorldToGrid(blockCFrame.Position, plotBase, self.PreviewModelSize)
-
+	local plot = self.Plot
+	local unitPosition = self.HoveredUnit:IsA("Model") and self.HoveredUnit:GetPivot().Position
+		or self.HoveredUnit.Position
+	if plot and self.PreviewModelSize then
+		local x, z, layer = self:WorldToGrid(unitPosition, plot, self.PreviewModelSize)
 		local key = `{x},{z}`
+
 		if self.CellStackCounts[key] then
 			self.CellStackCounts[key] = math.max(0, self.CellStackCounts[key] - 1)
 		end
+
 		self.OccupiedPositions[`{x},{z},{layer}`] = nil
-	elseif plotBase then
+	elseif plot then
 		local defaultSize = Vector3.new(GRID_CELL_SIZE, GRID_CELL_SIZE, GRID_CELL_SIZE)
-		local blockCFrame, _ = self.HoveredUnit:GetBoundingBox()
-		local x, z, layer = self:WorldToGrid(blockCFrame.Position, plotBase, defaultSize)
-
+		local x, z, layer = self:WorldToGrid(unitPosition, plot, defaultSize)
 		local key = `{x},{z}`
+
 		if self.CellStackCounts[key] then
 			self.CellStackCounts[key] = math.max(0, self.CellStackCounts[key] - 1)
 		end
+
 		self.OccupiedPositions[`{x},{z},{layer}`] = nil
 	end
 
@@ -525,8 +543,7 @@ function BuildController:TryDelete()
 		self.SelectionBox.Adornee = nil
 	end
 
-	--Zap.RemoveUnit.Fire(unitId)
-
+	Zap.RemoveUnit.Fire(unitId, plot.Parent.Units)
 	self.HoveredUnit = nil
 end
 
