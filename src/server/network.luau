@@ -17,7 +17,9 @@ if not _G.__ZAP then
 elseif not _G.__ZAP["ZAP"] then
 	_G.__ZAP["ZAP"] = {}
 elseif _G.__ZAP["ZAP"]["ZAP"] ~= nil then
-	error(`There is already an instance of Zap with the same remote_scope of ZAP, remote_folder of ZAP and the version of {_G.__ZAP["ZAP"]["ZAP"]}. Change the remote_scope or remote_folder option of both Zap instances`)
+	error(
+		`There is already an instance of Zap with the same remote_scope of ZAP, remote_folder of ZAP and the version of {_G.__ZAP["ZAP"]["ZAP"]}. Change the remote_scope or remote_folder option of both Zap instances`
+	)
 end
 
 _G.__ZAP["ZAP"]["ZAP"] = "0.6.29"
@@ -139,27 +141,27 @@ if not RunService:IsRunning() then
 			FireAll = noop,
 			FireExcept = noop,
 			FireList = noop,
-			FireSet = noop
+			FireSet = noop,
 		}),
 		RemoveUnit = table.freeze({
-			On = noop
+			On = noop,
 		}),
 		PlaceUnit = table.freeze({
-			On = noop
+			On = noop,
 		}),
 		EnableBuildMode = table.freeze({
 			Fire = noop,
 			FireAll = noop,
 			FireExcept = noop,
 			FireList = noop,
-			FireSet = noop
+			FireSet = noop,
 		}),
 		DisableBuildMode = table.freeze({
 			Fire = noop,
 			FireAll = noop,
 			FireExcept = noop,
 			FireList = noop,
-			FireSet = noop
+			FireSet = noop,
 		}),
 	}) :: Events
 end
@@ -241,8 +243,16 @@ reliable.OnServerEvent:Connect(function(player, buff, inst)
 			local len_3 = buffer.readu16(incoming_buff, read(2))
 			value2 = buffer.readstring(incoming_buff, read(len_3), len_3)
 			assert(utf8.len(value2) ~= nil, "value is not valid utf-8")
-			local pos_1 = Vector3.new(buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)))
-			local axisangle_1 = Vector3.new(buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)))
+			local pos_1 = Vector3.new(
+				buffer.readf32(incoming_buff, read(4)),
+				buffer.readf32(incoming_buff, read(4)),
+				buffer.readf32(incoming_buff, read(4))
+			)
+			local axisangle_1 = Vector3.new(
+				buffer.readf32(incoming_buff, read(4)),
+				buffer.readf32(incoming_buff, read(4)),
+				buffer.readf32(incoming_buff, read(4))
+			)
 			local angle_1 = axisangle_1.Magnitude
 			if angle_1 ~= 0 then
 				value3 = CFrame.fromAxisAngle(axisangle_1, angle_1) + pos_1
@@ -267,10 +277,13 @@ table.freeze(polling_queues_unreliable)
 local returns = {
 	SendEvents = SendEvents,
 	UpdateStatus = {
-		Fire = function(Player: Player, Value: ({
-			["primary"]: (string),
-			["secondary"]: (string),
-		}))
+		Fire = function(
+			Player: Player,
+			Value: {
+				["primary"]: string,
+				["secondary"]: string,
+			}
+		)
 			load_player(Player)
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 0)
@@ -288,10 +301,10 @@ local returns = {
 			buffer.writestring(outgoing_buff, outgoing_apos, Value["secondary"], len_5)
 			player_map[Player] = save()
 		end,
-		FireAll = function(Value: ({
-			["primary"]: (string),
-			["secondary"]: (string),
-		}))
+		FireAll = function(Value: {
+			["primary"]: string,
+			["secondary"]: string,
+		})
 			load_empty()
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 0)
@@ -316,10 +329,13 @@ local returns = {
 				player_map[player] = save()
 			end
 		end,
-		FireExcept = function(Except: Player, Value: ({
-			["primary"]: (string),
-			["secondary"]: (string),
-		}))
+		FireExcept = function(
+			Except: Player,
+			Value: {
+				["primary"]: string,
+				["secondary"]: string,
+			}
+		)
 			load_empty()
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 0)
@@ -346,10 +362,13 @@ local returns = {
 				end
 			end
 		end,
-		FireList = function(List: { [unknown]: Player }, Value: ({
-			["primary"]: (string),
-			["secondary"]: (string),
-		}))
+		FireList = function(
+			List: { Player },
+			Value: {
+				["primary"]: string,
+				["secondary"]: string,
+			}
+		)
 			load_empty()
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 0)
@@ -374,10 +393,13 @@ local returns = {
 				player_map[player] = save()
 			end
 		end,
-		FireSet = function(Set: { [Player]: any }, Value: ({
-			["primary"]: (string),
-			["secondary"]: (string),
-		}))
+		FireSet = function(
+			Set: { [Player]: any },
+			Value: {
+				["primary"]: string,
+				["secondary"]: string,
+			}
+		)
 			load_empty()
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 0)
@@ -404,7 +426,7 @@ local returns = {
 		end,
 	},
 	RemoveUnit = {
-		On = function(Callback: (Player: Player, unitId: (string), unitFolder: (Folder)) -> ()): () -> ()
+		On = function(Callback: (Player: Player, unitId: string, unitFolder: Folder) -> ()): () -> ()
 			table.insert(reliable_events[1], Callback)
 			return function()
 				table.remove(reliable_events[1], table.find(reliable_events[1], Callback))
@@ -412,7 +434,13 @@ local returns = {
 		end,
 	},
 	PlaceUnit = {
-		On = function(Callback: (Player: Player, unitName: (string), unitShape: (string), unitCFrame: (CFrame), unitFolder: (Folder)) -> ()): () -> ()
+		On = function(Callback: (
+			Player: Player,
+			unitName: string,
+			unitShape: string,
+			unitCFrame: CFrame,
+			unitFolder: Folder
+		) -> ()): () -> ()
 			table.insert(reliable_events[0], Callback)
 			return function()
 				table.remove(reliable_events[0], table.find(reliable_events[0], Callback))
@@ -420,7 +448,7 @@ local returns = {
 		end,
 	},
 	EnableBuildMode = {
-		Fire = function(Player: Player, plot: (Part))
+		Fire = function(Player: Player, plot: Part)
 			load_player(Player)
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 1)
@@ -428,7 +456,7 @@ local returns = {
 			table.insert(outgoing_inst, plot)
 			player_map[Player] = save()
 		end,
-		FireAll = function(plot: (Part))
+		FireAll = function(plot: Part)
 			load_empty()
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 1)
@@ -443,7 +471,7 @@ local returns = {
 				player_map[player] = save()
 			end
 		end,
-		FireExcept = function(Except: Player, plot: (Part))
+		FireExcept = function(Except: Player, plot: Part)
 			load_empty()
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 1)
@@ -460,7 +488,7 @@ local returns = {
 				end
 			end
 		end,
-		FireList = function(List: { [unknown]: Player }, plot: (Part))
+		FireList = function(List: { Player }, plot: Part)
 			load_empty()
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 1)
@@ -475,7 +503,7 @@ local returns = {
 				player_map[player] = save()
 			end
 		end,
-		FireSet = function(Set: { [Player]: any }, plot: (Part))
+		FireSet = function(Set: { [Player]: any }, plot: Part)
 			load_empty()
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 1)
@@ -526,7 +554,7 @@ local returns = {
 				end
 			end
 		end,
-		FireList = function(List: { [unknown]: Player })
+		FireList = function(List: { Player })
 			load_empty()
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 2)
