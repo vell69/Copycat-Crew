@@ -11,6 +11,10 @@ local FIRST_ROUND = true
 local PityWeights = {}
 local RoundService = {}
 
+local function setBuildAccess(player: Player, enabled: boolean)
+	player:SetAttribute("CanBuild", enabled)
+end
+
 local function chooseRandomBuilder(): Player?
 	local totalWeight = 0
 	local weights = {}
@@ -55,6 +59,98 @@ local function formatTime(seconds: number): string
 	return string.format("%02d:%02d", minutes, secs)
 end
 
+local function getGridPosition(unit: Part, plot: BasePart): (number, number, number)
+	local localPosition = plot.CFrame:PointToObjectSpace(unit.Position)
+	local cellSize = 4
+	local x = math.floor((localPosition.X + plot.Size.X * 0.5) / cellSize)
+	local z = math.floor((localPosition.Z + plot.Size.Z * 0.5) / cellSize)
+	local layer = math.floor((localPosition.Y - plot.Size.Y * 0.5) / cellSize)
+
+	return x, z, layer
+end
+
+local function getColorSimilarity(first: Color3, second: Color3): number
+	return 1 - math.max(math.abs(first.R - second.R), math.abs(first.G - second.G), math.abs(first.B - second.B))
+end
+
+local function getRotationSimilarity(first: CFrame, second: CFrame): number
+	local firstComponents = { first:GetComponents() }
+	local secondComponents = { second:GetComponents() }
+	local similarity = 0
+
+	for index = 4, 12 do
+		similarity += 1 - math.min(math.abs(firstComponents[index] - secondComponents[index]) / 2, 1)
+	end
+
+	return similarity / 9
+end
+
+local function getUnitSimilarity(original: Part, copy: Part, originalPlot: BasePart, copyPlot: BasePart): number
+	local originalX, originalZ, originalLayer = getGridPosition(original, originalPlot)
+	local copyX, copyZ, copyLayer = getGridPosition(copy, copyPlot)
+	local distance = math.abs(originalX - copyX) + math.abs(originalZ - copyZ) + math.abs(originalLayer - copyLayer)
+	local positionSimilarity = 1 / (1 + distance)
+	local shapeSimilarity = original.Shape == copy.Shape and 1 or 0
+	local colorSimilarity = getColorSimilarity(original.Color, copy.Color)
+	local originalRotation = originalPlot.CFrame:ToObjectSpace(original.CFrame)
+	local copyRotation = copyPlot.CFrame:ToObjectSpace(copy.CFrame)
+	local rotationSimilarity = getRotationSimilarity(originalRotation, copyRotation)
+
+	return positionSimilarity * 0.55 + shapeSimilarity * 0.2 + colorSimilarity * 0.2 + rotationSimilarity * 0.05
+end
+
+local function scoreBuild(originalBase: Model, copyBase: Model): number
+	local originalUnitsFolder = originalBase:FindFirstChild("Units")
+	local copyUnitsFolder = copyBase:FindFirstChild("Units")
+	local originalPlot = originalBase:FindFirstChild("Plot")
+	local copyPlot = copyBase:FindFirstChild("Plot")
+
+	assert(originalUnitsFolder and originalUnitsFolder:IsA("Folder"), "Original base is missing its Units folder")
+	assert(copyUnitsFolder and copyUnitsFolder:IsA("Folder"), "Copy base is missing its Units folder")
+	assert(originalPlot and originalPlot:IsA("BasePart"), "Original base is missing its Plot")
+	assert(copyPlot and copyPlot:IsA("BasePart"), "Copy base is missing its Plot")
+
+	local originalUnits = originalUnitsFolder:GetChildren()
+	local copyUnits = copyUnitsFolder:GetChildren()
+
+	if #originalUnits == 0 and #copyUnits == 0 then
+		return 100
+	elseif #originalUnits == 0 or #copyUnits == 0 then
+		return 0
+	end
+
+	local availableCopies = {}
+	for _, unit in copyUnits do
+		if unit:IsA("Part") then
+			table.insert(availableCopies, unit)
+		end
+	end
+
+	local totalSimilarity = 0
+	for _, originalUnit in originalUnits do
+		if not originalUnit:IsA("Part") then
+			continue
+		end
+
+		local bestIndex = nil
+		local bestSimilarity = 0
+		for index, copyUnit in availableCopies do
+			local similarity = getUnitSimilarity(originalUnit, copyUnit, originalPlot, copyPlot)
+			if similarity > bestSimilarity then
+				bestIndex = index
+				bestSimilarity = similarity
+			end
+		end
+
+		if bestIndex then
+			totalSimilarity += bestSimilarity
+			table.remove(availableCopies, bestIndex)
+		end
+	end
+
+	return totalSimilarity / math.max(#originalUnits, #copyUnits) * 100
+end
+
 function RoundService:Init()
 	task.spawn(function()
 		while true do
@@ -81,8 +177,8 @@ function RoundService:Init()
 
 			for i = Config.Round.INTERMISSION_TIME, 1, -1 do
 				Zap.UpdateStatus.FireAll({
-					primary = `{formatTime(i)}`,
-					secondary = `Intermission`,
+					primary = `Intermission`,
+					secondary = `{formatTime(i)}`,
 				})
 				task.wait(1)
 			end
@@ -91,6 +187,14 @@ function RoundService:Init()
 				primary = `Choosing a random builder...`,
 				secondary = ``,
 			})
+
+			local baseTemplate = workspace.Bases:FindFirstChild("Base")
+			if not baseTemplate or not baseTemplate:IsA("Model") then
+				warn("[RoundService]: Missing clean Base template; skipping round.")
+				trove:Destroy()
+				task.wait(1)
+				continue
+			end
 
 			local builder = chooseRandomBuilder()
 			if not builder then
@@ -120,11 +224,14 @@ function RoundService:Init()
 				secondary = ``,
 			})
 
-			local randomIndex = math.random(1, #workspace.Bases.Base.Spawns:GetChildren())
-			local randomSpawn = workspace.Bases.Base.Spawns:GetChildren()[randomIndex]
+			local spawns = baseTemplate.Spawns:GetChildren()
+			local randomIndex = math.random(1, #spawns)
+			local randomSpawn = spawns[randomIndex]
 			builderCharacter:PivotTo(randomSpawn.CFrame)
 
-			workspace.Bases.Base.Name = `Base_{builder.UserId}`
+			local originalBase = baseTemplate
+			originalBase.Name = `Base_{builder.UserId}`
+			setBuildAccess(builder, true)
 			Zap.EnableBuildMode.Fire(builder)
 
 			for i = Config.Round.BUILD_TIME, 1, -1 do
@@ -135,6 +242,7 @@ function RoundService:Init()
 				task.wait(1)
 			end
 
+			setBuildAccess(builder, false)
 			Zap.DisableBuildMode.Fire(builder)
 			Zap.UpdateStatus.FireAll({
 				primary = `The builder time is up.`,
@@ -143,14 +251,17 @@ function RoundService:Init()
 
 			task.wait(3)
 
+			local copierBases: { [Player]: Model } = {}
+
 			for _, player: Player in copiers do
 				local character = player.Character
 				if not character then
 					continue
 				end
 
-				local base = workspace.Bases:FindFirstChildOfClass("Model")
-				character:PivotTo(base.Spawns:GetChildren()[math.random(1, #base.Spawns:GetChildren())].CFrame)
+				character:PivotTo(
+					originalBase.Spawns:GetChildren()[math.random(1, #originalBase.Spawns:GetChildren())].CFrame
+				)
 			end
 
 			for i = Config.Round.GLIMPSE_TIME, 1, -1 do
@@ -174,16 +285,17 @@ function RoundService:Init()
 					continue
 				end
 
-				local base = workspace.Bases:FindFirstChildOfClass("Model")
+				local base = originalBase:Clone()
 				local index = #workspace.Bases:GetChildren() + 1
 				local _, size = base:GetBoundingBox()
 				local x = (index - 1) * (size.X + Config.Round.BASE_SPACING)
 
-				base = base:Clone()
 				base.Units:ClearAllChildren()
 				base.Parent = workspace.Bases
 				base.Name = `Base_{player.UserId}`
 				base:PivotTo(base:GetPivot() * CFrame.new(x, 0, 0))
+				copierBases[player] = base
+				setBuildAccess(player, true)
 				character:PivotTo(base.Spawns:GetChildren()[math.random(1, #base.Spawns:GetChildren())].CFrame)
 			end
 
@@ -197,22 +309,51 @@ function RoundService:Init()
 				task.wait(1)
 			end
 
+			for _, player: Player in copiers do
+				setBuildAccess(player, false)
+			end
 			Zap.DisableBuildMode.FireList(copiers)
+
+			local results = {}
+
+			for player, copyBase in copierBases do
+				table.insert(results, {
+					playerName = player.DisplayName,
+					score = scoreBuild(originalBase, copyBase),
+				})
+			end
+
+			table.sort(results, function(first, second)
+				if first.score == second.score then
+					return first.playerName < second.playerName
+				end
+
+				return first.score > second.score
+			end)
 
 			Zap.UpdateStatus.FireAll({
 				primary = `Copying time is over`,
-				secondary = `now restarting the round!`,
+				secondary = `results are in`,
 			})
 
-			task.wait(3)
+			for rank, result in results do
+				print(string.format("[Round Results] #%d %s: %.2f%%", rank, result.playerName, result.score))
+			end
+
+			task.wait(8)
 
 			Zap.UpdateStatus.FireAll({ primary = ``, secondary = `` })
+
+			local nextBase = originalBase:Clone()
+			nextBase.Name = "Base"
+			nextBase.Units:ClearAllChildren()
+			workspace.Bases:ClearAllChildren()
+			nextBase.Parent = workspace.Bases
 
 			for _, player: Player in Players:GetPlayers() do
 				player:LoadCharacterAsync()
 			end
 
-			workspace.Bases:ClearAllChildren()
 			trove:Destroy()
 		end
 	end)

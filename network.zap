@@ -29,12 +29,12 @@ event PlaceUnit = {
 	from: Client,
 	type: Reliable,
 	call: ManyAsync,
-	data: (unitName: string.utf8, unitShape: string.utf8, unitCFrame: CFrame, unitFolder: Instance.Folder)
+	data: (unitName: string.utf8, unitShape: string.utf8, unitCFrame: CFrame)
 }
 
 event RemoveUnit = {
 	from: Client,
 	type: Reliable,
 	call: ManyAsync,
-	data: (unitId: string.utf8, unitFolder: Instance.Folder)
+	data: (unitId: string.utf8)
 }

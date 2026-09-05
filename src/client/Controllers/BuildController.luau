@@ -22,7 +22,6 @@ local PREVIEW_HIDDEN_TRANSPARENCY = 1
 local BuildController = {
 	CanBuild = true,
 	BuildMode = false,
-	InDeleteMode = false,
 	SelectedUnit = nil,
 	PreviewModel = nil,
 	PreviewShape = "Block",
@@ -283,7 +282,7 @@ function BuildController:RefreshOccupiedCells()
 	local blockSize = self.PreviewModelSize or Vector3.new(GRID_CELL_SIZE, GRID_CELL_SIZE, GRID_CELL_SIZE)
 
 	for _, placed in ipairs(self.Plot.Parent.Units:GetChildren()) do
-		if placed:IsA("Instance") then
+		if placed:IsA("BasePart") then
 			local x, z, layer = self:WorldToGrid(placed.Position, plot, blockSize)
 			local key = `{x},{z}`
 
@@ -409,7 +408,7 @@ function BuildController:TryPlace()
 	self.OccupiedPositions[`{self.CurrentPreviewCell.x},{self.CurrentPreviewCell.z},{self.CurrentPreviewCell.layer}`] =
 		true
 
-	Zap.PlaceUnit.Fire(self.SelectedUnit, self.PreviewShape, self.CurrentPreviewCell.cframe, self.Plot.Parent.Units)
+	Zap.PlaceUnit.Fire(self.SelectedUnit, self.PreviewShape, self.CurrentPreviewCell.cframe)
 	self.PreviewDirty = true
 end
 
@@ -557,7 +556,11 @@ function BuildController:TryDelete()
 		self.SelectionBox.Adornee = nil
 	end
 
-	Zap.RemoveUnit.Fire(unitId, plot.Parent.Units)
+	if not plot then
+		return
+	end
+
+	Zap.RemoveUnit.Fire(unitId)
 	self.HoveredUnit = nil
 end
 

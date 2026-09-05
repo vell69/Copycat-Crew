@@ -256,7 +256,7 @@ local returns = {
 		end,
 	},
 	RemoveUnit = {
-		Fire = function(unitId: (string), unitFolder: (Folder))
+		Fire = function(unitId: (string))
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 1)
 			local len_3 = #unitId
@@ -265,12 +265,10 @@ local returns = {
 			buffer.writeu16(outgoing_buff, outgoing_apos, len_3)
 			alloc(len_3)
 			buffer.writestring(outgoing_buff, outgoing_apos, unitId, len_3)
-			assert(unitFolder:IsA("Folder"), "received instance is not of the Folder class!")
-			table.insert(outgoing_inst, unitFolder)
 		end,
 	},
 	PlaceUnit = {
-		Fire = function(unitName: (string), unitShape: (string), unitCFrame: (CFrame), unitFolder: (Folder))
+		Fire = function(unitName: (string), unitShape: (string), unitCFrame: (CFrame))
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 0)
 			local len_4 = #unitName
@@ -299,8 +297,6 @@ local returns = {
 			buffer.writef32(outgoing_buff, outgoing_apos, axis_1.Y)
 			alloc(4)
 			buffer.writef32(outgoing_buff, outgoing_apos, axis_1.Z)
-			assert(unitFolder:IsA("Folder"), "received instance is not of the Folder class!")
-			table.insert(outgoing_inst, unitFolder)
 		end,
 	},
 	EnableBuildMode = {

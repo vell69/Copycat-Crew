@@ -17,7 +17,10 @@ function PlayerController:Init()
 end
 
 function PlayerController:UpdateStatus(data: { [string]: string })
-	local main = statusGui:WaitForChild("Main")
+	local main = statusGui:FindFirstChild("Main")
+	if not main then
+		return
+	end
 
 	main.Primary.Text = data.primary
 	main.Primary.Shadow.Text = data.primary

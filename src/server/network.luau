@@ -17,9 +17,7 @@ if not _G.__ZAP then
 elseif not _G.__ZAP["ZAP"] then
 	_G.__ZAP["ZAP"] = {}
 elseif _G.__ZAP["ZAP"]["ZAP"] ~= nil then
-	error(
-		`There is already an instance of Zap with the same remote_scope of ZAP, remote_folder of ZAP and the version of {_G.__ZAP["ZAP"]["ZAP"]}. Change the remote_scope or remote_folder option of both Zap instances`
-	)
+	error(`There is already an instance of Zap with the same remote_scope of ZAP, remote_folder of ZAP and the version of {_G.__ZAP["ZAP"]["ZAP"]}. Change the remote_scope or remote_folder option of both Zap instances`)
 end
 
 _G.__ZAP["ZAP"]["ZAP"] = "0.6.29"
@@ -141,27 +139,27 @@ if not RunService:IsRunning() then
 			FireAll = noop,
 			FireExcept = noop,
 			FireList = noop,
-			FireSet = noop,
+			FireSet = noop
 		}),
 		RemoveUnit = table.freeze({
-			On = noop,
+			On = noop
 		}),
 		PlaceUnit = table.freeze({
-			On = noop,
+			On = noop
 		}),
 		EnableBuildMode = table.freeze({
 			Fire = noop,
 			FireAll = noop,
 			FireExcept = noop,
 			FireList = noop,
-			FireSet = noop,
+			FireSet = noop
 		}),
 		DisableBuildMode = table.freeze({
 			Fire = noop,
 			FireAll = noop,
 			FireExcept = noop,
 			FireList = noop,
-			FireSet = noop,
+			FireSet = noop
 		}),
 	}) :: Events
 end
@@ -224,47 +222,31 @@ reliable.OnServerEvent:Connect(function(player, buff, inst)
 	while incoming_read < len do
 		local id = buffer.readu8(buff, read(1))
 		if id == 1 then -- RemoveUnit
-			local value, value2
+			local value
 			local len_1 = buffer.readu16(incoming_buff, read(2))
 			value = buffer.readstring(incoming_buff, read(len_1), len_1)
 			assert(utf8.len(value) ~= nil, "value is not valid utf-8")
-			incoming_ipos = incoming_ipos + 1
-			value2 = incoming_inst[incoming_ipos]
-			assert(value2 ~= nil, "received instance is nil!")
-			assert(value2:IsA("Folder"), "received instance is not of the Folder class!")
 			for _, cb in reliable_events[1] do
-				task.spawn(cb, player, value, value2)
+				task.spawn(cb, player, value)
 			end
 		elseif id == 0 then -- PlaceUnit
-			local value, value2, value3, value4
+			local value, value2, value3
 			local len_2 = buffer.readu16(incoming_buff, read(2))
 			value = buffer.readstring(incoming_buff, read(len_2), len_2)
 			assert(utf8.len(value) ~= nil, "value is not valid utf-8")
 			local len_3 = buffer.readu16(incoming_buff, read(2))
 			value2 = buffer.readstring(incoming_buff, read(len_3), len_3)
 			assert(utf8.len(value2) ~= nil, "value is not valid utf-8")
-			local pos_1 = Vector3.new(
-				buffer.readf32(incoming_buff, read(4)),
-				buffer.readf32(incoming_buff, read(4)),
-				buffer.readf32(incoming_buff, read(4))
-			)
-			local axisangle_1 = Vector3.new(
-				buffer.readf32(incoming_buff, read(4)),
-				buffer.readf32(incoming_buff, read(4)),
-				buffer.readf32(incoming_buff, read(4))
-			)
+			local pos_1 = Vector3.new(buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)))
+			local axisangle_1 = Vector3.new(buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)))
 			local angle_1 = axisangle_1.Magnitude
 			if angle_1 ~= 0 then
 				value3 = CFrame.fromAxisAngle(axisangle_1, angle_1) + pos_1
 			else
 				value3 = CFrame.new(pos_1)
 			end
-			incoming_ipos = incoming_ipos + 1
-			value4 = incoming_inst[incoming_ipos]
-			assert(value4 ~= nil, "received instance is nil!")
-			assert(value4:IsA("Folder"), "received instance is not of the Folder class!")
 			for _, cb in reliable_events[0] do
-				task.spawn(cb, player, value, value2, value3, value4)
+				task.spawn(cb, player, value, value2, value3)
 			end
 		else
 			error("Unknown event id")
@@ -277,13 +259,10 @@ table.freeze(polling_queues_unreliable)
 local returns = {
 	SendEvents = SendEvents,
 	UpdateStatus = {
-		Fire = function(
-			Player: Player,
-			Value: {
-				["primary"]: string,
-				["secondary"]: string,
-			}
-		)
+		Fire = function(Player: Player, Value: ({
+			["primary"]: (string),
+			["secondary"]: (string),
+		}))
 			load_player(Player)
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 0)
@@ -301,10 +280,10 @@ local returns = {
 			buffer.writestring(outgoing_buff, outgoing_apos, Value["secondary"], len_5)
 			player_map[Player] = save()
 		end,
-		FireAll = function(Value: {
-			["primary"]: string,
-			["secondary"]: string,
-		})
+		FireAll = function(Value: ({
+			["primary"]: (string),
+			["secondary"]: (string),
+		}))
 			load_empty()
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 0)
@@ -329,13 +308,10 @@ local returns = {
 				player_map[player] = save()
 			end
 		end,
-		FireExcept = function(
-			Except: Player,
-			Value: {
-				["primary"]: string,
-				["secondary"]: string,
-			}
-		)
+		FireExcept = function(Except: Player, Value: ({
+			["primary"]: (string),
+			["secondary"]: (string),
+		}))
 			load_empty()
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 0)
@@ -362,13 +338,10 @@ local returns = {
 				end
 			end
 		end,
-		FireList = function(
-			List: { Player },
-			Value: {
-				["primary"]: string,
-				["secondary"]: string,
-			}
-		)
+		FireList = function(List: { [unknown]: Player }, Value: ({
+			["primary"]: (string),
+			["secondary"]: (string),
+		}))
 			load_empty()
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 0)
@@ -393,13 +366,10 @@ local returns = {
 				player_map[player] = save()
 			end
 		end,
-		FireSet = function(
-			Set: { [Player]: any },
-			Value: {
-				["primary"]: string,
-				["secondary"]: string,
-			}
-		)
+		FireSet = function(Set: { [Player]: any }, Value: ({
+			["primary"]: (string),
+			["secondary"]: (string),
+		}))
 			load_empty()
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 0)
@@ -426,7 +396,7 @@ local returns = {
 		end,
 	},
 	RemoveUnit = {
-		On = function(Callback: (Player: Player, unitId: string, unitFolder: Folder) -> ()): () -> ()
+		On = function(Callback: (Player: Player, unitId: (string)) -> ()): () -> ()
 			table.insert(reliable_events[1], Callback)
 			return function()
 				table.remove(reliable_events[1], table.find(reliable_events[1], Callback))
@@ -434,13 +404,7 @@ local returns = {
 		end,
 	},
 	PlaceUnit = {
-		On = function(Callback: (
-			Player: Player,
-			unitName: string,
-			unitShape: string,
-			unitCFrame: CFrame,
-			unitFolder: Folder
-		) -> ()): () -> ()
+		On = function(Callback: (Player: Player, unitName: (string), unitShape: (string), unitCFrame: (CFrame)) -> ()): () -> ()
 			table.insert(reliable_events[0], Callback)
 			return function()
 				table.remove(reliable_events[0], table.find(reliable_events[0], Callback))
@@ -482,7 +446,7 @@ local returns = {
 				end
 			end
 		end,
-		FireList = function(List: { Player })
+		FireList = function(List: { [unknown]: Player })
 			load_empty()
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 1)
@@ -544,7 +508,7 @@ local returns = {
 				end
 			end
 		end,
-		FireList = function(List: { Player })
+		FireList = function(List: { [unknown]: Player })
 			load_empty()
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, 2)
