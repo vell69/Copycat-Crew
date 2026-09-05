@@ -176,7 +176,7 @@ local reliable_event_queue: { [number]: { any } } = table.create(3)
 reliable_events[0] = {}
 reliable_event_queue[0] = {}
 reliable_events[1] = {}
-reliable_event_queue[1] = {}
+reliable_event_queue[1] = 0
 reliable_events[2] = {}
 reliable_event_queue[2] = 0
 reliable.OnClientEvent:Connect(function(buff, inst)
@@ -208,18 +208,14 @@ reliable.OnClientEvent:Connect(function(buff, inst)
 			end
 		elseif id == 1 then -- EnableBuildMode
 			local value
-			incoming_ipos = incoming_ipos + 1
-			value = incoming_inst[incoming_ipos]
-			assert(value ~= nil, "received instance is nil!")
-			assert(value:IsA("Part"), "received instance is not of the Part class!")
 			if reliable_events[1][1] then
 				for _, cb in reliable_events[1] do
 					task.spawn(cb, value)
 				end
 			else
-				table.insert(reliable_event_queue[1], value)
-				if #reliable_event_queue[1] > 64 then
-					warn(`[ZAP] {#reliable_event_queue[1]} events in queue for EnableBuildMode. Did you forget to attach a listener?`)
+				reliable_event_queue[1] += 1
+				if reliable_event_queue[1] > 16 then
+					warn(`[ZAP] {reliable_event_queue[1]} events in queue for EnableBuildMode. Did you forget to attach a listener?`)
 				end
 			end
 		elseif id == 2 then -- DisableBuildMode
@@ -308,12 +304,12 @@ local returns = {
 		end,
 	},
 	EnableBuildMode = {
-		On = function(Callback: (plot: (Part)) -> ())
+		On = function(Callback: () -> ())
 			table.insert(reliable_events[1], Callback)
-			for _, value in reliable_event_queue[1] do
-				task.spawn(Callback, value)
+			for _ = 1, reliable_event_queue[1] do
+				task.spawn(Callback)
 			end
-			reliable_event_queue[1] = {}
+			reliable_event_queue[1] = 0
 			return function()
 				table.remove(reliable_events[1], table.find(reliable_events[1], Callback))
 			end

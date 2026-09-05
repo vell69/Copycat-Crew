@@ -75,8 +75,22 @@ function BuildController:ClickDelete()
 end
 
 function BuildController:Init()
-	Zap.EnableBuildMode.On(function(plot: Part?)
-		self.Plot = plot
+	Zap.EnableBuildMode.On(function()
+		local base = workspace:FindFirstChild("Bases") and workspace.Bases:FindFirstChild(`Base_{player.UserId}`)
+		if base then
+			local plot = base:FindFirstChild("Plot")
+
+			if plot then
+				self.Plot = plot
+			else
+				warn("[BuildController]: No plot found for player.")
+				return
+			end
+		else
+			warn("[BuildController]: No base found for player.")
+			return
+		end
+
 		self.CanBuild = true
 		buildGui.Enabled = true
 	end)
@@ -85,6 +99,7 @@ function BuildController:Init()
 		self.Plot = nil
 		self.CanBuild = false
 		buildGui.Enabled = false
+		self:Unbind()
 	end)
 
 	for _, color: GuiButton in buildGui.ColorBoard.Container:GetChildren() do
@@ -158,7 +173,6 @@ function BuildController:BindBlock(block: string)
 
 	if self.PreviewModel then
 		self.PreviewModelSize = self.PreviewModel.Size
-		--self.PreviewShape = "Block"
 		self.PreviewOrientation = CFrame.new()
 		self.PreviewModel.Shape = Enum.PartType[self.PreviewShape]
 		self.PreviewVisible = false

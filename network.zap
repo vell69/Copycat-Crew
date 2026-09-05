@@ -16,8 +16,7 @@ event UpdateStatus = {
 event EnableBuildMode = {
 	from: Server,
 	type: Reliable,
-	call: ManyAsync,
-	data: (plot: Instance.Part)
+	call: ManyAsync
 }
 
 event DisableBuildMode = {

@@ -48,137 +48,139 @@ local function chooseRandomBuilder(): Player?
 	return chosen
 end
 
-function RoundService:Init(): nil
-	while true do
-		if not RunService:IsStudio() then
-			if #Players:GetPlayers() < Config.Round.REQUIRED_PLAYERS then
-				print(`Waiting for more players.`)
+function RoundService:Init()
+	task.spawn(function()
+		while true do
+			if not RunService:IsStudio() then
+				if #Players:GetPlayers() < Config.Round.REQUIRED_PLAYERS then
+					print(`Waiting for more players.`)
+					task.wait(1)
+					continue
+				end
+			end
+
+			if FIRST_ROUND then
+				FIRST_ROUND = false
+				print(
+					`Waiting {Config.Round.INITIALIZATION_TIME} seconds before starting to ensure proper initialization.`
+				)
+				task.wait(Config.Round.INITIALIZATION_TIME)
+			end
+
+			local trove = Trove.new()
+
+			for i = Config.Round.INTERMISSION_TIME, 1, -1 do
+				print(`Intermission: {i}`)
 				task.wait(1)
-				continue
 			end
-		end
 
-		if FIRST_ROUND then
-			FIRST_ROUND = false
-			print(`Waiting {Config.Round.INITIALIZATION_TIME} seconds before starting to ensure proper initialization.`)
-			task.wait(Config.Round.INITIALIZATION_TIME)
-		end
+			print(`Choosing random player...`)
 
-		local trove = Trove.new()
-
-		for i = Config.Round.INTERMISSION_TIME, 1, -1 do
-			print(`Intermission: {i}`)
-			task.wait(1)
-		end
-
-		print(`Choosing random player...`)
-
-		local builder = chooseRandomBuilder()
-		if not builder then
-			print("No players available to choose from.")
-			trove:Destroy()
-			continue
-		end
-
-		local copiers = Players:GetPlayers()
-		if table.find(copiers, builder) then
-			table.remove(copiers, table.find(copiers, builder))
-		else
-			print(`Chosen player {builder.Name} is no longer in the game.`)
-			trove:Destroy()
-			continue
-		end
-
-		local builderCharacter = builder.Character
-		if not builderCharacter then
-			print(`Failed to define chosen player's character.`)
-			trove:Destroy()
-			continue
-		end
-
-		print(`Chosen player: {builder.Name}`)
-
-		Zap.UpdateStatus.FireExcept(builder, {
-			primary = "WaitingForBuilder",
-			secondary = "",
-		})
-
-		local randomIndex = math.random(1, #workspace.Bases.Base.Spawns:GetChildren())
-		local randomSpawn = workspace.Bases.Base.Spawns:GetChildren()[randomIndex]
-		builderCharacter:PivotTo(randomSpawn.CFrame)
-
-		Zap.EnableBuildMode.Fire(builder, workspace.Bases.Base.Plot)
-
-		for i = Config.Round.BUILD_TIME, 1, -1 do
-			print(`Build time: {i}`)
-			task.wait(1)
-		end
-
-		Zap.DisableBuildMode.Fire(builder)
-
-		print(`Builder {builder.Name} has finished building, now teleporting players to take a glimpse.`)
-		task.wait(3)
-
-		for _, player: Player in copiers do
-			local character = player.Character
-			if not character then
+			local builder = chooseRandomBuilder()
+			if not builder then
+				print("No players available to choose from.")
+				trove:Destroy()
 				continue
 			end
 
-			local base = workspace.Bases.Base
-			character:PivotTo(base.Spawns:GetChildren()[math.random(1, #base.Spawns:GetChildren())].CFrame)
-		end
-
-		for i = Config.Round.GLIMPSE_TIME, 1, -1 do
-			print(`Glimpse time: {i}`)
-			task.wait(1)
-		end
-
-		print("Glimpse time is over, now teleporting players to copy the build.")
-		task.wait(3)
-
-		for _, player: Player in copiers do
-			local character = player.Character
-			if not character then
+			local copiers = Players:GetPlayers()
+			if table.find(copiers, builder) then
+				table.remove(copiers, table.find(copiers, builder))
+			else
+				print(`Chosen player {builder.Name} is no longer in the game.`)
+				trove:Destroy()
 				continue
 			end
 
-			local base = workspace.Bases.Base
-			local index = #workspace.Bases:GetChildren() + 1
-			local _, size = base:GetBoundingBox()
-			local x = (index - 1) * (size.X + Config.Round.BASE_SPACING)
-
-			base = base:Clone()
-			base.Parent = workspace.Bases
-			base.Name = `Base_{player.UserId}`
-			base:PivotTo(base:GetPivot() * CFrame.new(x, 0, 0))
-			character:PivotTo(base.Spawns:GetChildren()[math.random(1, #base.Spawns:GetChildren())].CFrame)
-
-			Zap.EnableBuildMode.Fire(player, base.Plot)
-		end
-
-		for i = Config.Round.COPYING_TIME, 1, -1 do
-			print(`Copying time: {i}`)
-			task.wait(1)
-		end
-
-		Zap.DisableBuildMode.FireList(copiers)
-
-		print("Copying time is over, restarting the round.")
-		task.wait(3)
-
-		for _, player: Player in Players:GetPlayers() do
-			player:LoadCharacterAsync()
-		end
-
-		for _, base: Model in workspace.Bases:GetChildren() do
-			if base.Name ~= "Base" then
-				base:Destroy()
+			local builderCharacter = builder.Character
+			if not builderCharacter then
+				print(`Failed to define chosen player's character.`)
+				trove:Destroy()
+				continue
 			end
-		end
 
-		trove:Destroy()
-	end
+			print(`Chosen player: {builder.Name}`)
+
+			Zap.UpdateStatus.FireExcept(builder, {
+				primary = "WaitingForBuilder",
+				secondary = "",
+			})
+
+			local randomIndex = math.random(1, #workspace.Bases.Base.Spawns:GetChildren())
+			local randomSpawn = workspace.Bases.Base.Spawns:GetChildren()[randomIndex]
+			builderCharacter:PivotTo(randomSpawn.CFrame)
+
+			workspace.Bases.Base.Name = `Base_{builder.UserId}`
+			Zap.EnableBuildMode.Fire(builder)
+
+			for i = Config.Round.BUILD_TIME, 1, -1 do
+				print(`Build time: {i}`)
+				task.wait(1)
+			end
+
+			Zap.DisableBuildMode.Fire(builder)
+
+			print(`Builder {builder.Name} has finished building, now teleporting players to take a glimpse.`)
+			task.wait(3)
+
+			for _, player: Player in copiers do
+				local character = player.Character
+				if not character then
+					continue
+				end
+
+				local base = workspace.Bases:FindFirstChildOfClass("Model")
+				character:PivotTo(base.Spawns:GetChildren()[math.random(1, #base.Spawns:GetChildren())].CFrame)
+			end
+
+			for i = Config.Round.GLIMPSE_TIME, 1, -1 do
+				print(`Glimpse time: {i}`)
+				task.wait(1)
+			end
+
+			print("Glimpse time is over, now teleporting players to copy the build.")
+			task.wait(3)
+
+			for _, player: Player in copiers do
+				local character = player.Character
+				if not character then
+					continue
+				end
+
+				local base = workspace.Bases:FindFirstChildOfClass("Model")
+				local index = #workspace.Bases:GetChildren() + 1
+				local _, size = base:GetBoundingBox()
+				local x = (index - 1) * (size.X + Config.Round.BASE_SPACING)
+
+				base = base:Clone()
+				base.Units:ClearAllChildren()
+				base.Parent = workspace.Bases
+				base.Name = `Base_{player.UserId}`
+				base:PivotTo(base:GetPivot() * CFrame.new(x, 0, 0))
+				character:PivotTo(base.Spawns:GetChildren()[math.random(1, #base.Spawns:GetChildren())].CFrame)
+			end
+
+			Zap.EnableBuildMode.FireList(copiers)
+
+			for i = Config.Round.COPYING_TIME, 1, -1 do
+				print(`Copying time: {i}`)
+				task.wait(1)
+			end
+
+			Zap.DisableBuildMode.FireList(copiers)
+
+			print("Copying time is over, restarting the round.")
+			task.wait(3)
+
+			for _, player: Player in Players:GetPlayers() do
+				player:LoadCharacterAsync()
+			end
+
+			workspace.Bases:ClearAllChildren()
+
+			trove:Destroy()
+		end
+	end)
 end
 
 return RoundService
