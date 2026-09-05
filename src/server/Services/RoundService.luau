@@ -48,6 +48,13 @@ local function chooseRandomBuilder(): Player?
 	return chosen
 end
 
+local function formatTime(seconds: number): string
+	seconds = math.floor(seconds)
+	local minutes = math.floor(seconds / 60)
+	local secs = seconds % 60
+	return string.format("%02d:%02d", minutes, secs)
+end
+
 function RoundService:Init()
 	task.spawn(function()
 		while true do
@@ -61,20 +68,29 @@ function RoundService:Init()
 
 			if FIRST_ROUND then
 				FIRST_ROUND = false
-				print(
-					`Waiting {Config.Round.INITIALIZATION_TIME} seconds before starting to ensure proper initialization.`
-				)
-				task.wait(Config.Round.INITIALIZATION_TIME)
+				for i = Config.Round.INITIALIZATION_TIME, 1, -1 do
+					Zap.UpdateStatus.FireAll({
+						primary = `Waiting {formatTime(i)}`,
+						secondary = `for proper server initialization.`,
+					})
+					task.wait(1)
+				end
 			end
 
 			local trove = Trove.new()
 
 			for i = Config.Round.INTERMISSION_TIME, 1, -1 do
-				print(`Intermission: {i}`)
+				Zap.UpdateStatus.FireAll({
+					primary = `{formatTime(i)}`,
+					secondary = `Intermission`,
+				})
 				task.wait(1)
 			end
 
-			print(`Choosing random player...`)
+			Zap.UpdateStatus.FireAll({
+				primary = `Choosing a random builder...`,
+				secondary = ``,
+			})
 
 			local builder = chooseRandomBuilder()
 			if not builder then
@@ -99,11 +115,9 @@ function RoundService:Init()
 				continue
 			end
 
-			print(`Chosen player: {builder.Name}`)
-
-			Zap.UpdateStatus.FireExcept(builder, {
-				primary = "WaitingForBuilder",
-				secondary = "",
+			Zap.UpdateStatus.Fire(builder, {
+				primary = `You have been chosen as a builder.`,
+				secondary = ``,
 			})
 
 			local randomIndex = math.random(1, #workspace.Bases.Base.Spawns:GetChildren())
@@ -114,13 +128,19 @@ function RoundService:Init()
 			Zap.EnableBuildMode.Fire(builder)
 
 			for i = Config.Round.BUILD_TIME, 1, -1 do
-				print(`Build time: {i}`)
+				Zap.UpdateStatus.FireAll({
+					primary = `Waiting for the builder to finish`,
+					secondary = `{formatTime(i)}`,
+				})
 				task.wait(1)
 			end
 
 			Zap.DisableBuildMode.Fire(builder)
+			Zap.UpdateStatus.FireAll({
+				primary = `The builder time is up.`,
+				secondary = `Now teleporting other players to take a glimpse!`,
+			})
 
-			print(`Builder {builder.Name} has finished building, now teleporting players to take a glimpse.`)
 			task.wait(3)
 
 			for _, player: Player in copiers do
@@ -134,11 +154,18 @@ function RoundService:Init()
 			end
 
 			for i = Config.Round.GLIMPSE_TIME, 1, -1 do
-				print(`Glimpse time: {i}`)
+				Zap.UpdateStatus.FireAll({
+					primary = `{formatTime(i)}`,
+					secondary = ``,
+				})
 				task.wait(1)
 			end
 
-			print("Glimpse time is over, now teleporting players to copy the build.")
+			Zap.UpdateStatus.FireAll({
+				primary = `Glimpse time is over`,
+				secondary = `now teleporting players to copy the build!`,
+			})
+
 			task.wait(3)
 
 			for _, player: Player in copiers do
@@ -163,21 +190,29 @@ function RoundService:Init()
 			Zap.EnableBuildMode.FireList(copiers)
 
 			for i = Config.Round.COPYING_TIME, 1, -1 do
-				print(`Copying time: {i}`)
+				Zap.UpdateStatus.FireAll({
+					primary = `{formatTime(i)}`,
+					secondary = ``,
+				})
 				task.wait(1)
 			end
 
 			Zap.DisableBuildMode.FireList(copiers)
 
-			print("Copying time is over, restarting the round.")
+			Zap.UpdateStatus.FireAll({
+				primary = `Copying time is over`,
+				secondary = `now restarting the round!`,
+			})
+
 			task.wait(3)
+
+			Zap.UpdateStatus.FireAll({ primary = ``, secondary = `` })
 
 			for _, player: Player in Players:GetPlayers() do
 				player:LoadCharacterAsync()
 			end
 
 			workspace.Bases:ClearAllChildren()
-
 			trove:Destroy()
 		end
 	end)
